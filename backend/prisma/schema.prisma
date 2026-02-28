@@ -21,15 +21,16 @@ model Merchant {
   currency  String?
   timezone  String?
   isActive  Boolean  @default(true)
-  status    String?  // optional: pending/active/suspended
+  status    String? // optional: pending/active/suspended
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores    Store[]
-  products Product[]
-  users     User[]
-  roles     Role[]
+  stores       Store[]
+  products     Product[]
+  users        User[]
+  roles        Role[]
   stockLedgers StockLedger[]
+  sales        Sale[]
 }
 
 model Store {
@@ -43,28 +44,28 @@ model Store {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-  users      User[]
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  users        User[]
   stockLedgers StockLedger[]
+  sales        Sale[]
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   merchantId   String
   storeId      String?
   fullName     String
-  email        String   @unique
+  email        String    @unique
   phone        String?
   passwordHash String
-  status       String?  // active/disabled
+  status       String? // active/disabled
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  merchant     Merchant @relation(fields: [merchantId], references: [id])
-  store        Store?   @relation(fields: [storeId], references: [id])
-
-  userRoles    UserRole[]
+  merchant  Merchant   @relation(fields: [merchantId], references: [id])
+  store     Store?     @relation(fields: [storeId], references: [id])
+  userRoles UserRole[]
 }
 
 model Role {
@@ -74,26 +75,27 @@ model Role {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-  userRoles  UserRole[]
-  rolePerms  RolePermission[]
+  merchant  Merchant         @relation(fields: [merchantId], references: [id])
+  userRoles UserRole[]
+  rolePerms RolePermission[]
 
   @@unique([merchantId, name])
 }
 
 model Permission {
-  id          String @id @default(uuid())
-  key         String @unique
+  id          String  @id @default(uuid())
+  key         String  @unique
   description String?
-  rolePerms   RolePermission[]
+
+  rolePerms RolePermission[]
 }
 
 model RolePermission {
   roleId       String
   permissionId String
 
-  role         Role       @relation(fields: [roleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
 
   @@id([roleId, permissionId])
 }
@@ -102,56 +104,125 @@ model UserRole {
   userId String
   roleId String
 
-  user   User @relation(fields: [userId], references: [id])
-  role   Role @relation(fields: [roleId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 
   @@id([userId, roleId])
 }
 
 model Product {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   merchantId String
 
-  name       String
-  sku        String?
-  barcode    String?
-  price      Float
+  name    String
+  sku     String?
+  barcode String?
+  price   Float
 
-  isDeleted  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
   stockLedgers StockLedger[]
+  saleItems    SaleItem[]
 
-  @@index([merchantId])
-  @@index([merchantId, isDeleted])
   @@unique([merchantId, sku])
   @@unique([merchantId, barcode])
+  @@index([merchantId])
+  @@index([merchantId, isDeleted])
 }
 
 model StockLedger {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   merchantId String
   storeId    String
 
-  productId  String
-  type       String   // "IN" | "OUT" | "ADJUST"
-  qtyChange  Int
-  unitCost   Float?
-  reference  String?  // e.g. "SALE:<saleId>" or "STOCKIN:<id>"
-  note       String?
+  productId String
+  type      String // "IN" | "OUT" | "ADJUST"
+  qtyChange Int
+  unitCost  Float?
+  reference String? // e.g. "SALE:<saleId>" or "STOCKIN:<id>"
+  note      String?
 
-  createdBy  String?  // userId
-  createdAt  DateTime @default(now())
+  createdBy String? // userId
+  createdAt DateTime @default(now())
 
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-  store      Store    @relation(fields: [storeId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
 
   @@index([merchantId, storeId])
   @@index([merchantId, productId])
   @@index([merchantId, storeId, productId])
   @@index([createdAt])
+}
+
+model Sale {
+  id         String  @id @default(uuid())
+  merchantId String
+  storeId    String
+  terminalId String?
+  cashierId  String?
+
+  receiptNo String?
+  status    String  @default("COMPLETED") // COMPLETED | VOIDED | HELD
+
+  subtotal Float
+  discount Float @default(0)
+  tax      Float @default(0)
+  total    Float
+
+  clientTxnId String? // for offline idempotency later
+
+  createdAt DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+
+  items    SaleItem[]
+  payments Payment[]
+
+  @@unique([merchantId, clientTxnId])
+  @@index([merchantId, storeId, createdAt])
+}
+
+model SaleItem {
+  id        String @id @default(uuid())
+  saleId    String
+  productId String
+
+  nameSnap  String
+  priceSnap Float
+  qty       Int
+  lineTotal Float
+
+  sale    Sale    @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  saleId    String
+  method    String // CASH | MOMO | CARD | SPLIT
+  amount    Float
+  reference String?
+  createdAt DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  @@index([saleId])
+}
+
+model ReceiptCounter {
+  id         String  @id @default(uuid())
+  merchantId String
+  storeId    String
+  dateKey    String  // YYYYMMDD
+  lastNumber Int     @default(0)
+
+  @@unique([merchantId, storeId, dateKey])
 }

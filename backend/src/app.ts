@@ -6,6 +6,7 @@ import { authRoutes } from "./modules/auth/auth.routes";
 import { merchantRoutes } from "./modules/merchants/merchant.routes";
 import { productRoutes } from "./modules/products/products.routes";
 import { inventoryRoutes } from "./modules/inventory/inventory.routes";
+import { salesRoutes } from "./modules/sales/sales.routes";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ export function buildApp() {
   app.register(merchantRoutes);
   app.register(productRoutes);
   app.register(inventoryRoutes);
+  app.register(salesRoutes)
 
   return app;
 }
