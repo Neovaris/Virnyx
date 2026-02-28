@@ -1,0 +1,130 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+.next/
+out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+.jest_cache/
+.mocha_cache/
+
+# Runtime data
+pids/
+*.seed
+*.pid.lock
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+database.json
+.db/
+
+# Credentials and secrets
+.credentials
+credentials.json
+secrets.json
+*.pem
+*.key
+private/
+.ssh/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# POS system specific
+receipts/
+transactions_backup/
+local_db/
+offline_cache/
+merchant_keys/
+payment_tokens/
+
+# Development overrides
+.local/
+local_config.ts
+local_config.js
+config.local.ts
+config.local.js
+
+# System files
+.classpath
+.c9/
+.iml
+.project
+.settings/
+.vscode-test/
+*.code-workspace
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# MacOS
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Docker
+.dockerignore
+# Uncomment if you have docker files managed separately
+# docker-compose.override.yml
+
+# Misc
+*.orig
+.eslintcache
+.prettierignore

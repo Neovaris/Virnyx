@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//<<<=== models =====>>>
+model Merchant {
+  id        String   @id @default(uuid())
+  name      String
+  country   String?
+  currency  String?
+  timezone  String?
+  isActive  Boolean  @default(true)
+  status    String?  // optional: pending/active/suspended
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stores    Store[]
+  users     User[]
+  roles     Role[]
+}
+
+model Store {
+  id         String   @id @default(uuid())
+  merchantId String
+  name       String
+  code       String?
+  address    String?
+  phone      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  users      User[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  merchantId   String
+  storeId      String?
+  fullName     String
+  email        String?  @unique
+  phone        String?
+  passwordHash String
+  status       String?  // active/disabled
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  merchant     Merchant @relation(fields: [merchantId], references: [id])
+  store        Store?   @relation(fields: [storeId], references: [id])
+
+  userRoles    UserRole[]
+}
+
+model Role {
+  id         String   @id @default(uuid())
+  merchantId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  userRoles  UserRole[]
+  rolePerms  RolePermission[]
+
+  @@unique([merchantId, name])
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  key         String @unique
+  description String?
+  rolePerms   RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}

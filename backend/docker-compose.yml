@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: virnyx_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: virnyx
+      POSTGRES_PASSWORD: virnyxpass
+      POSTGRES_DB: virnyx
+    volumes:
+      - virnyx_pg:/var/lib/postgresql/data
+
+volumes:
+  virnyx_pg:
