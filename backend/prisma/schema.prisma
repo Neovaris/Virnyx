@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -51,7 +50,7 @@ model User {
   merchantId   String
   storeId      String?
   fullName     String
-  email        String?  @unique
+  email        String   @unique
   phone        String?
   passwordHash String
   status       String?  // active/disabled
