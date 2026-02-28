@@ -29,6 +29,7 @@ model Merchant {
   products Product[]
   users     User[]
   roles     Role[]
+  stockLedgers StockLedger[]
 }
 
 model Store {
@@ -44,6 +45,7 @@ model Store {
 
   merchant   Merchant @relation(fields: [merchantId], references: [id])
   users      User[]
+  stockLedgers StockLedger[]
 }
 
 model User {
@@ -121,8 +123,35 @@ model Product {
 
   merchant   Merchant @relation(fields: [merchantId], references: [id])
 
+  stockLedgers StockLedger[]
+
   @@index([merchantId])
   @@index([merchantId, isDeleted])
   @@unique([merchantId, sku])
   @@unique([merchantId, barcode])
+}
+
+model StockLedger {
+  id         String   @id @default(uuid())
+  merchantId String
+  storeId    String
+
+  productId  String
+  type       String   // "IN" | "OUT" | "ADJUST"
+  qtyChange  Int
+  unitCost   Float?
+  reference  String?  // e.g. "SALE:<saleId>" or "STOCKIN:<id>"
+  note       String?
+
+  createdBy  String?  // userId
+  createdAt  DateTime @default(now())
+
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  store      Store    @relation(fields: [storeId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([merchantId, storeId])
+  @@index([merchantId, productId])
+  @@index([merchantId, storeId, productId])
+  @@index([createdAt])
 }
