@@ -108,10 +108,21 @@ model UserRole {
 
 model Product {
   id         String   @id @default(uuid())
-  name       String
-  price      Float
   merchantId String
+
+  name       String
+  sku        String?
+  barcode    String?
+  price      Float
+
+  isDeleted  Boolean  @default(false)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   merchant   Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([merchantId, isDeleted])
+  @@unique([merchantId, sku])
+  @@unique([merchantId, barcode])
 }
