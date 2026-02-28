@@ -3,7 +3,8 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import dotenv from "dotenv";
 import { authRoutes } from "./modules/auth/auth.routes";
-import { merchantRoutes } from "./modules/mechants/merchant.routes";
+import { merchantRoutes } from "./modules/merchants/merchant.routes";
+import { productRoutes } from "./modules/products/products.routes";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ export function buildApp() {
   
   app.register(authRoutes);
   app.register(merchantRoutes);
+  app.register(productRoutes);
 
   return app;
 }

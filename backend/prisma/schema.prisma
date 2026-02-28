@@ -26,6 +26,7 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   stores    Store[]
+  products Product[]
   users     User[]
   roles     Role[]
 }
@@ -103,4 +104,25 @@ model UserRole {
   role   Role @relation(fields: [roleId], references: [id])
 
   @@id([userId, roleId])
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  merchantId String
+
+  name       String
+  sku        String?
+  barcode    String?
+  price      Float
+
+  isDeleted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([merchantId, isDeleted])
+  @@unique([merchantId, sku])
+  @@unique([merchantId, barcode])
 }
