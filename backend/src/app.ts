@@ -5,6 +5,11 @@ import dotenv from "dotenv";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { merchantRoutes } from "./modules/merchants/merchant.routes";
 import { productRoutes } from "./modules/products/products.routes";
+import { inventoryRoutes } from "./modules/inventory/inventory.routes";
+import { salesRoutes } from "./modules/sales/sales.routes";
+import { reportsRoutes } from "./modules/reports/reports.routes";
+import { refundsRoutes } from "./modules/refunds/refunds.routes";
+import { sessionsRoutes } from "./modules/sessions/sessions.routes";
 
 dotenv.config();
 
@@ -19,6 +24,11 @@ export function buildApp() {
   app.register(authRoutes);
   app.register(merchantRoutes);
   app.register(productRoutes);
+  app.register(inventoryRoutes);
+  app.register(salesRoutes)
+  app.register(reportsRoutes)
+  app.register(refundsRoutes);
+  app.register(sessionsRoutes);
 
   return app;
 }
