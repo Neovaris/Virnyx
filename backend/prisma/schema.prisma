@@ -25,12 +25,14 @@ model Merchant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stores       Store[]
-  products     Product[]
-  users        User[]
-  roles        Role[]
-  stockLedgers StockLedger[]
-  sales        Sale[]
+  stores        Store[]
+  products      Product[]
+  users         User[]
+  roles         Role[]
+  stockLedgers  StockLedger[]
+  sales         Sale[]
+  refunds       Refund[]
+  shiftSessions ShiftSession[]
 }
 
 model Store {
@@ -44,10 +46,12 @@ model Store {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  merchant     Merchant      @relation(fields: [merchantId], references: [id])
-  users        User[]
-  stockLedgers StockLedger[]
-  sales        Sale[]
+  merchant      Merchant       @relation(fields: [merchantId], references: [id])
+  users         User[]
+  stockLedgers  StockLedger[]
+  sales         Sale[]
+  refunds       Refund[]
+  shiftSessions ShiftSession[]
 }
 
 model User {
@@ -63,9 +67,10 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  merchant  Merchant   @relation(fields: [merchantId], references: [id])
-  store     Store?     @relation(fields: [storeId], references: [id])
-  userRoles UserRole[]
+  merchant      Merchant       @relation(fields: [merchantId], references: [id])
+  store         Store?         @relation(fields: [storeId], references: [id])
+  shiftSessions ShiftSession[] @relation("CashierShiftSessions")
+  userRoles     UserRole[]
 }
 
 model Role {
@@ -126,6 +131,7 @@ model Product {
   merchant     Merchant      @relation(fields: [merchantId], references: [id])
   stockLedgers StockLedger[]
   saleItems    SaleItem[]
+  refundItems  RefundItem[]
 
   @@unique([merchantId, sku])
   @@unique([merchantId, barcode])
@@ -182,6 +188,7 @@ model Sale {
 
   items    SaleItem[]
   payments Payment[]
+  refunds  Refund[]
 
   @@unique([merchantId, clientTxnId])
   @@index([merchantId, storeId, createdAt])
@@ -197,8 +204,9 @@ model SaleItem {
   qty       Int
   lineTotal Float
 
-  sale    Sale    @relation(fields: [saleId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  sale        Sale         @relation(fields: [saleId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  refundItems RefundItem[]
 
   @@index([saleId])
   @@index([productId])
@@ -218,11 +226,77 @@ model Payment {
 }
 
 model ReceiptCounter {
-  id         String  @id @default(uuid())
+  id         String @id @default(uuid())
   merchantId String
   storeId    String
-  dateKey    String  // YYYYMMDD
-  lastNumber Int     @default(0)
+  dateKey    String // YYYYMMDD
+  lastNumber Int    @default(0)
 
   @@unique([merchantId, storeId, dateKey])
+}
+
+model Refund {
+  id         String @id @default(uuid())
+  merchantId String
+  storeId    String
+  saleId     String
+
+  cashierId String?
+  reason    String?
+  restock   Boolean @default(true)
+
+  amount    Float
+  createdAt DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  sale     Sale     @relation(fields: [saleId], references: [id])
+
+  items RefundItem[]
+
+  @@index([merchantId, storeId, createdAt])
+  @@index([saleId])
+}
+
+model RefundItem {
+  id         String @id @default(uuid())
+  refundId   String
+  saleItemId String
+  productId  String
+
+  qty    Int
+  amount Float
+
+  refund   Refund   @relation(fields: [refundId], references: [id])
+  saleItem SaleItem @relation(fields: [saleItemId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([refundId])
+  @@index([saleItemId])
+  @@index([productId])
+}
+
+model ShiftSession {
+  id         String @id @default(uuid())
+  merchantId String
+  storeId    String
+  cashierId  String
+
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
+  status   String    @default("OPEN") // OPEN | CLOSED
+
+  openingCash  Float  @default(0)
+  closingCash  Float?
+  expectedCash Float?
+  difference   Float?
+
+  note String?
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  cashier  User     @relation("CashierShiftSessions", fields: [cashierId], references: [id])
+
+  @@index([merchantId, storeId, status])
+  @@index([cashierId, openedAt])
 }
