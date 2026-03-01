@@ -33,6 +33,7 @@ model Merchant {
   sales         Sale[]
   refunds       Refund[]
   shiftSessions ShiftSession[]
+  inventories   Inventory[]
 }
 
 model Store {
@@ -52,6 +53,7 @@ model Store {
   sales         Sale[]
   refunds       Refund[]
   shiftSessions ShiftSession[]
+  inventories   Inventory[]
 }
 
 model User {
@@ -132,6 +134,7 @@ model Product {
   stockLedgers StockLedger[]
   saleItems    SaleItem[]
   refundItems  RefundItem[]
+  inventories  Inventory[]
 
   @@unique([merchantId, sku])
   @@unique([merchantId, barcode])
@@ -179,19 +182,21 @@ model Sale {
   tax      Float @default(0)
   total    Float
 
-  clientTxnId String? // for offline idempotency later
+  clientTxnId    String? // for offline idempotency later
+  shiftSessionId String?
 
   createdAt DateTime @default(now())
 
-  merchant Merchant @relation(fields: [merchantId], references: [id])
-  store    Store    @relation(fields: [storeId], references: [id])
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  store        Store         @relation(fields: [storeId], references: [id])
+  shiftSession ShiftSession? @relation(fields: [shiftSessionId], references: [id])
 
   items    SaleItem[]
   payments Payment[]
   refunds  Refund[]
 
   @@unique([merchantId, clientTxnId])
-  @@index([merchantId, storeId, createdAt])
+  @@index([merchantId, storeId, shiftSessionId, createdAt])
 }
 
 model SaleItem {
@@ -245,16 +250,18 @@ model Refund {
   reason    String?
   restock   Boolean @default(true)
 
-  amount    Float
-  createdAt DateTime @default(now())
+  amount         Float
+  createdAt      DateTime @default(now())
+  shiftSessionId String?
 
-  merchant Merchant @relation(fields: [merchantId], references: [id])
-  store    Store    @relation(fields: [storeId], references: [id])
-  sale     Sale     @relation(fields: [saleId], references: [id])
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  store        Store         @relation(fields: [storeId], references: [id])
+  sale         Sale          @relation(fields: [saleId], references: [id])
+  shiftSession ShiftSession? @relation(fields: [shiftSessionId], references: [id])
 
   items RefundItem[]
 
-  @@index([merchantId, storeId, createdAt])
+  @@index([merchantId, storeId, shiftSessionId, createdAt])
   @@index([saleId])
 }
 
@@ -293,10 +300,32 @@ model ShiftSession {
 
   note String?
 
+  sales   Sale[]
+  refunds Refund[]
+
   merchant Merchant @relation(fields: [merchantId], references: [id])
   store    Store    @relation(fields: [storeId], references: [id])
   cashier  User     @relation("CashierShiftSessions", fields: [cashierId], references: [id])
 
   @@index([merchantId, storeId, status])
   @@index([cashierId, openedAt])
+}
+
+model Inventory {
+  id         String @id @default(uuid())
+  merchantId String
+  storeId    String
+  productId  String
+
+  onHand    Int      @default(0)
+  reserved  Int      @default(0) // optional for future
+  updatedAt DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+  store    Store    @relation(fields: [storeId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([merchantId, storeId, productId])
+  @@index([merchantId, storeId])
+  @@index([productId])
 }

@@ -10,6 +10,8 @@ import { salesRoutes } from "./modules/sales/sales.routes";
 import { reportsRoutes } from "./modules/reports/reports.routes";
 import { refundsRoutes } from "./modules/refunds/refunds.routes";
 import { sessionsRoutes } from "./modules/sessions/sessions.routes";
+import { usersRoutes } from "./modules/users/users.routes";
+import { receiptsRoutes } from "./modules/receipts/receipts.routes";
 
 dotenv.config();
 
@@ -29,6 +31,8 @@ export function buildApp() {
   app.register(reportsRoutes)
   app.register(refundsRoutes);
   app.register(sessionsRoutes);
+  app.register(usersRoutes);
+  app.register(receiptsRoutes);
 
   return app;
 }
