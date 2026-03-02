@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -6,11 +7,7 @@ export const metadata: Metadata = {
   description: "Admin panel for Virnyx",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="bg-slate-950 text-slate-100">{children}</body>
