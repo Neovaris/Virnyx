@@ -25,52 +25,54 @@ export async function registerMerchantHandler(
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const { merchant, user } = await prisma.$transaction(async (tx: PrismaClient) => {
-    const merchant = await tx.merchant.create({
-      data: { name: merchantName },
-    });
+  const { merchant, user } = await prisma.$transaction(
+    async (tx: PrismaClient) => {
+      const merchant = await tx.merchant.create({
+        data: { name: merchantName },
+      });
 
-    const store = await tx.store.create({
-      data: {
-        name: storeName,
-        merchantId: merchant.id,
-      },
-    });
-
-    const adminRole = await tx.role.create({
-      data: {
-        name: "ADMIN",
-        merchantId: merchant.id,
-      },
-    });
-
-    const allPermissions = await tx.permission.findMany();
-
-    for (const perm of allPermissions) {
-      await tx.rolePermission.create({
+      const store = await tx.store.create({
         data: {
-          roleId: adminRole.id,
-          permissionId: perm.id,
+          name: storeName,
+          merchantId: merchant.id,
         },
       });
-    }
 
-    const user = await tx.user.create({
-      data: {
-        fullName,
-        email,
-        passwordHash,
-        merchantId: merchant.id,
-        storeId: store.id,
-      },
-    });
+      const adminRole = await tx.role.create({
+        data: {
+          name: "ADMIN",
+          merchantId: merchant.id,
+        },
+      });
 
-    await tx.userRole.create({
-      data: { userId: user.id, roleId: adminRole.id },
-    });
+      const allPermissions = await tx.permission.findMany();
 
-    return { merchant, user };
-  });
+      for (const perm of allPermissions) {
+        await tx.rolePermission.create({
+          data: {
+            roleId: adminRole.id,
+            permissionId: perm.id,
+          },
+        });
+      }
+
+      const user = await tx.user.create({
+        data: {
+          fullName,
+          email,
+          passwordHash,
+          merchantId: merchant.id,
+          storeId: store.id,
+        },
+      });
+
+      await tx.userRole.create({
+        data: { userId: user.id, roleId: adminRole.id },
+      });
+
+      return { merchant, user };
+    },
+  );
 
   return reply.code(201).send({
     message: "Merchant registered successfully",
@@ -94,15 +96,28 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   if (!ok) return reply.code(401).send({ message: "Invalid credentials" });
 
   // update last login
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
+  // fetch roles for this user
+  const userRoles = await prisma.userRole.findMany({
+    where: { userId: user.id },
+    select: {
+      role: {
+        select: { name: true },
+      },
+    },
   });
+
+  const roles = userRoles.map((ur) => ur.role.name);
 
   const token = await reply.jwtSign({
     sub: user.id,
     merchantId: user.merchantId,
     storeId: user.storeId,
+    roles, // 🔥 now roles are embedded inside JWT
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
   });
 
   return reply.send({ token });
@@ -111,7 +126,7 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
 export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
   const userId = (req.user as any).sub as string;
 
-  const user = await prisma.user.findUnique({
+  const userWithRoles = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -121,8 +136,44 @@ export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
       storeId: true,
       createdAt: true,
       lastLoginAt: true,
+
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              name: true,
+              rolePerms: {
+                select: {
+                  permission: { select: { key: true } },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
-  return reply.send({ user });
+  if (!userWithRoles) {
+    return reply.code(401).send({ message: "User not found" });
+  }
+
+  if (userWithRoles.status === "disabled") {
+    return reply.code(403).send({ message: "Account disabled" });
+  }
+
+  const roles = userWithRoles.userRoles.map((ur) => ur.role.name);
+
+  const permissions = Array.from(
+    new Set(
+      userWithRoles.userRoles.flatMap((ur) =>
+        ur.role.rolePerms.map((rp) => rp.permission.key),
+      ),
+    ),
+  ).sort();
+
+  // keep same user payload shape you already return
+  const { userRoles, ...user } = userWithRoles;
+
+  return reply.send({ user, roles, permissions });
 }
