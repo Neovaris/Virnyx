@@ -31,7 +31,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace("/admin");
+      router.replace("/");
     } catch (e: unknown) {
       const error = e as any;
       setErr(error?.message ?? "Login failed");

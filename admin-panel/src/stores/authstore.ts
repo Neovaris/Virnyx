@@ -1,46 +1,40 @@
 import { create } from "zustand";
-import { getMe, type MeResponse } from "@/lib/auth";
-import { clientMe } from "@/lib/auth.client";
+import type { MeResponse } from "@/lib/auth.shared";
+import { clientMe, clientLogout } from "@/lib/auth.client";
 
 type AuthState = {
-  token: string | null;
   me: MeResponse["user"] | null;
   permissions: string[];
   loading: boolean;
-  setToken: (token: string | null) => void;
   loadMe: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   can: (perm: string) => boolean;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  token: typeof window !== "undefined" ? localStorage.getItem("vrx_token") : null,
   me: null,
   permissions: [],
   loading: false,
 
-  setToken: (token) => {
-    set({ token });
-    if (typeof window !== "undefined") {
-      if (token) localStorage.setItem("vrx_token", token);
-      else localStorage.removeItem("vrx_token");
-    }
-  },
-
   loadMe: async () => {
     set({ loading: true });
     try {
-      const data = await getMe();
+      const data = await clientMe();
+      if (!data) {
+        set({ me: null, permissions: [], loading: false });
+        return;
+      }
       set({ me: data.user, permissions: data.permissions ?? [], loading: false });
-    } catch {
-      get().logout();
+    } finally {
       set({ loading: false });
     }
   },
 
-  logout: () => {
-    set({ token: null, me: null, permissions: [] });
-    if (typeof window !== "undefined") localStorage.removeItem("vrx_token");
+  logout: async () => {
+    try {
+      await clientLogout();
+    } catch {}
+    set({ me: null, permissions: [] });
   },
 
   can: (perm) => get().permissions.includes(perm),

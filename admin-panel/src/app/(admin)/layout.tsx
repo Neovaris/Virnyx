@@ -1,14 +1,11 @@
-import { fetchMe } from "@/lib/auth";
-import { redirect } from "next/navigation";
+// src/app/(admin)/layout.tsx
+import AuthProvider from "@/components/admin/AuthProvider";
+import AdminShell from "@/components/admin/AdminShell";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  // Middleware already validated auth + role
-  // Just fetch user data for sidebar/layout use
-  const me = await fetchMe();
-  
-  if (!me) {
-    redirect("/login");
-  }
-
-  return <div className="min-h-screen">{children}</div>;
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AdminShell>{children}</AdminShell>
+    </AuthProvider>
+  );
 }

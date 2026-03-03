@@ -12,6 +12,8 @@ import { refundsRoutes } from "./modules/refunds/refunds.routes";
 import { sessionsRoutes } from "./modules/sessions/sessions.routes";
 import { usersRoutes } from "./modules/users/users.routes";
 import { receiptsRoutes } from "./modules/receipts/receipts.routes";
+import { rolesRoutes } from "./modules/roles/roles.routes";
+import { settingsRoutes } from "./modules/settings/settings.routes";
 
 dotenv.config();
 
@@ -33,6 +35,8 @@ export function buildApp() {
   app.register(sessionsRoutes);
   app.register(usersRoutes);
   app.register(receiptsRoutes);
+  app.register(rolesRoutes);
+  app.register(settingsRoutes);
 
   return app;
 }

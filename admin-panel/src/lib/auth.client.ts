@@ -1,16 +1,4 @@
-export type MeResponse = {
-  user: {
-    id: string;
-    fullName: string;
-    email: string;
-    merchantId: string;
-    storeId: string | null;
-    createdAt: string;
-    lastLoginAt: string | null;
-  };
-  roles: string[];
-  permissions: string[];
-};
+import type { MeResponse } from "./auth.shared";
 
 export async function clientMe(): Promise<MeResponse | null> {
   const res = await fetch("/api/auth/me", { cache: "no-store" });
@@ -20,4 +8,14 @@ export async function clientMe(): Promise<MeResponse | null> {
 
 export async function clientLogout() {
   await fetch("/api/auth/logout", { method: "POST" });
+}
+
+export async function clientLogin(email: string, password: string) {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error("Login failed");
+  return res.json();
 }
