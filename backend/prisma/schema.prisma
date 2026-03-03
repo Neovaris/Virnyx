@@ -25,6 +25,12 @@ model Merchant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+   // ✅ Settings (v1)
+  receiptFooter    String?
+  taxEnabled       Boolean @default(false)
+  taxRate          Float   @default(0)
+  pricesIncludeTax Boolean @default(false)
+
   stores        Store[]
   products      Product[]
   users         User[]
@@ -34,6 +40,17 @@ model Merchant {
   refunds       Refund[]
   shiftSessions ShiftSession[]
   inventories   Inventory[]
+  
+  // Advanced Settings (v2)
+  paymentMethodSettings PaymentMethodSettings? @relation("PaymentMethodSettings")
+  refundPolicySettings  RefundPolicySettings? @relation("RefundPolicySettings")
+  shiftManagementSettings ShiftManagementSettings? @relation("ShiftManagementSettings")
+  notificationSettings  NotificationSettings? @relation("NotificationSettings")
+  securitySettings      SecuritySettings? @relation("SecuritySettings")
+  backupSettings        BackupSettings? @relation("BackupSettings")
+  receiptSettings       ReceiptSettings? @relation("ReceiptSettings")
+  salesSettings         SalesSettings? @relation("SalesSettings")
+  integrationSettings   IntegrationSettings? @relation("IntegrationSettings")
 }
 
 model Store {
@@ -46,6 +63,11 @@ model Store {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+    // ✅ Settings (v1)
+  lowStockThreshold Int    @default(10)
+  receiptPrefix     String?
+  openingCashDefault Float @default(0)
 
   merchant      Merchant       @relation(fields: [merchantId], references: [id])
   users         User[]
@@ -328,4 +350,395 @@ model Inventory {
   @@unique([merchantId, storeId, productId])
   @@index([merchantId, storeId])
   @@index([productId])
+}
+
+// POS Settings Models
+model PaymentMethodSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Payment method toggles
+  enableCash       Boolean @default(true)
+  enableCard       Boolean @default(true)
+  enableMobileMoney Boolean @default(true)
+  enableCheck      Boolean @default(false)
+  enableBankTransfer Boolean @default(false)
+  
+  // Surcharge settings
+  cardSurchargePercent      Float @default(0)
+  mobileMoneysSurchargePercent Float @default(0)
+  checkProcessingFee        Float @default(0)
+  bankTransferFee           Float @default(0)
+  
+  // Card settings
+  cardProcessorName String?
+  cardProcessorKey  String?
+  cardProcessorSecret String?
+  
+  // Mobile money settings
+  mobileMoneyProvider String? // MTN, VODAFONE, AIRTEL, etc
+  mobileMoneyApiKey   String?
+  
+  // Bank transfer settings
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountName   String?
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("PaymentMethodSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model RefundPolicySettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Refund window
+  refundWindowDays          Int   @default(30)
+  maxRefundPercentage       Float @default(100)
+  
+  // Approval requirements
+  requireApprovalAboveAmount Float @default(1000)
+  requireManagerApproval     Boolean @default(true)
+  requireAdminApproval       Boolean @default(false)
+  
+  // Restock and fees
+  autoRestockItems          Boolean @default(true)
+  restockFeePercent         Float @default(0)
+  minRefundAmount           Float @default(0)
+  maxRefundsPerDay          Int    @default(0) // 0 = unlimited
+  
+  // Receipt handling
+  printRefundReceipt        Boolean @default(true)
+  refundReceiptPrefix       String  @default("REF-")
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("RefundPolicySettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model ShiftManagementSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Shift logistics
+  autoCloseTime               String?  // HH:MM format, e.g., "22:00"
+  allowLateCloseMinutes       Int      @default(60)
+  requireOpeningCash          Boolean  @default(true)
+  requireClosingBalance       Boolean  @default(true)
+  
+  // Variance / discrepancy
+  varianceTolerancePercent    Float    @default(2) // Accept ±2% variance
+  toleranceAmount             Float    @default(0)  // Or fixed amount
+  
+  // Approval rules
+  requireApprovalForVariance Boolean  @default(true)
+  varianceApprovalThreshold   Float    @default(100)
+  requireApprovalForOvertime  Boolean  @default(false)
+  overtimeThresholdMinutes    Int      @default(120) // 2 hours
+  
+  // Shift restrictions
+  maxShiftDurationMinutes     Int      @default(480) // 8 hours
+  minBreakTimeMinutes         Int      @default(30)
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("ShiftManagementSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model NotificationSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Stock notifications
+  sendLowStockAlerts        Boolean @default(true)
+  lowStockThreshold         Int     @default(10)
+  sendOutOfStockAlerts      Boolean @default(true)
+  
+  // Sales notifications
+  enableEndOfDayReport      Boolean @default(true)
+  endOfDayReportTime        String  @default("22:00") // HH:MM format
+  enableHighValueSaleAlert  Boolean @default(true)
+  highValueThreshold        Float   @default(0)
+  
+  // System notifications
+  enableUnusualTransactionAlert Boolean @default(true)
+  enableErrorNotifications  Boolean @default(true)
+  enableRefundAlerts        Boolean @default(true)
+  
+  // Notification channels
+  notifyViaEmail            Boolean @default(true)
+  notifyViaSMS              Boolean @default(false)
+  notifyViaInApp            Boolean @default(true)
+  
+  // Alert recipients
+  alertEmails               String  @default("") // Comma-separated
+  alertPhoneNumbers         String  @default("") // Comma-separated
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("NotificationSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model SecuritySettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Session management
+  sessionTimeoutMinutes       Int     @default(30)
+  allowConcurrentSessions     Boolean @default(false)
+  maxSessionsPerUser          Int     @default(1)
+  
+  // Password policy
+  minPasswordLength           Int     @default(8)
+  requireUppercase            Boolean @default(true)
+  requireNumbers              Boolean @default(true)
+  requireSpecialCharacters    Boolean @default(false)
+  passwordExpiryDays          Int     @default(90) // 0 = no expiry
+  preventPasswordReuse        Boolean @default(true)
+  previousPasswordsToCheck    Int     @default(5)
+  
+  // Authentication
+  enableTwoFactor             Boolean @default(false)
+  twoFactorMethod             String  @default("TOTP") // TOTP, SMS, EMAIL
+  
+  // Login restrictions
+  maxFailedLoginAttempts      Int     @default(5)
+  lockoutDurationMinutes      Int     @default(15)
+  requireIPWhitelist          Boolean @default(false)
+  allowedIPs                  String  @default("") // Comma-separated
+  
+  // Audit
+  logAllActions               Boolean @default(true)
+  retentionDays               Int     @default(90)
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("SecuritySettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model BackupSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Backup scheduling
+  enableAutoBackup            Boolean @default(true)
+  backupFrequency             String  @default("DAILY") // DAILY, WEEKLY, MONTHLY
+  backupTime                  String  @default("02:00") // HH:MM format
+  backupDayOfWeek             Int     @default(1) // 1=Monday, only for WEEKLY
+  backupDayOfMonth            Int     @default(1) // 1-31, only for MONTHLY
+  
+  // Backup retention
+  retentionDays               Int     @default(30)
+  maxBackupCount              Int     @default(10)
+  
+  // Backup destination
+  backupDestination           String  @default("LOCAL") // LOCAL, CLOUD, BOTH
+  cloudProvider               String? // AWS, GOOGLE, AZURE
+  cloudBucketName             String?
+  cloudAccessKey              String?
+  cloudSecretKey              String?
+  
+  // Export formats
+  enableDatabaseExport        Boolean @default(true)
+  enableInvoiceExport         Boolean @default(true)
+  enableInventoryExport       Boolean @default(true)
+  enableFinancialExport       Boolean @default(true)
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("BackupSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model ReceiptSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Receipt format
+  receiptWidth                String  @default("80MM") // 80MM, 58MM
+  useLogoOnReceipt            Boolean @default(true)
+  logoUrl                     String?
+  
+  // Receipt content
+  customHeader                String? // Max 100 chars
+  customFooter                String? // Max 300 chars
+  displayLogo                 Boolean @default(true)
+  displayMerchantName         Boolean @default(true)
+  displayStoreName            Boolean @default(true)
+  displayTaxId                Boolean @default(false)
+  displayCashierName          Boolean @default(true)
+  displayReceiptNumber        Boolean @default(true)
+  displayTimestamp            Boolean @default(true)
+  
+  // Item details on receipt
+  showProductSKU              Boolean @default(false)
+  showProductDescription      Boolean @default(true)
+  showUnitPrice               Boolean @default(true)
+  showQuantity                Boolean @default(true)
+  showLineTotal               Boolean @default(true)
+  
+  // Totals and taxes
+  displaySubtotal             Boolean @default(true)
+  displayTaxBreakdown         Boolean @default(true)
+  displayTotal                Boolean @default(true)
+  displayChangeDue            Boolean @default(true)
+  
+  // Payment details
+  showPaymentMethod           Boolean @default(true)
+  showPaymentReference        Boolean @default(false)
+  
+  // Messages
+  thankYouMessage             String? // Max 100 chars
+  returnsExchangeMessage      String? // Max 100 chars
+  discountMessage             String? // Max 100 chars
+  
+  // Printing
+  printerType                 String  @default("THERMAL") // THERMAL, INKJET, GENERIC
+  printBarcode                Boolean @default(true)
+  printQRCode                 Boolean @default(false)
+  
+  // Digital
+  enableEmailReceipt          Boolean @default(false)
+  enableSMSReceipt            Boolean @default(false)
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("ReceiptSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model SalesSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // Inventory
+  allowNegativeStock          Boolean @default(false)
+  warnLowStock                Boolean @default(true)
+  lowStockThreshold           Int     @default(10)
+  autoReorderPoint            Int     @default(0) // 0 = disabled
+  
+  // Pricing and rounding
+  priceRoundingMethod         String  @default("NONE") // NONE, ROUND_UP, ROUND_DOWN, NEAREST
+  enableDiscountApproval      Boolean @default(false)
+  discountApprovalThreshold   Float   @default(100)
+  maxDiscountPercent          Float   @default(50)
+  
+  // Receipts
+  receiptNumberingMethod      String  @default("SEQUENTIAL") // SEQUENTIAL, DAILY_RESET
+  nextReceiptNumber           Int     @default(1)
+  receiptNumberPrefix         String?
+  
+  // Refunds and voids
+  requireApprovalForVoid      Boolean @default(true)
+  voidApprovalThreshold       Float   @default(0) // 0 = always require
+  allowOfflineVoid            Boolean @default(false)
+  
+  // Discounts
+  enableManualDiscount        Boolean @default(true)
+  enableVolumeDiscount        Boolean @default(false)
+  enableLoyaltyDiscount       Boolean @default(false)
+  
+  // Display
+  displayItemTotalOnScreen    Boolean @default(true)
+  displayRunningTotal         Boolean @default(true)
+  requireCustomerName         Boolean @default(false)
+  requireCustomerPhone        Boolean @default(false)
+  
+  // Transactions
+  maxTransactionAmount        Float   @default(0) // 0 = unlimited
+  minTransactionAmount        Float   @default(0)
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("SalesSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
+}
+
+model IntegrationSettings {
+  id         String @id @default(uuid())
+  merchantId String @unique
+  
+  // API settings
+  enableAPI                   Boolean @default(false)
+  apiKey                      String?
+  apiSecret                   String?
+  apiWebhookUrl               String?
+  apiWebhookSecret            String?
+  
+  // Webhook events
+  enableWebhookOnSale         Boolean @default(false)
+  enableWebhookOnRefund       Boolean @default(false)
+  enableWebhookOnPayment      Boolean @default(false)
+  enableWebhookOnInventory    Boolean @default(false)
+  
+  // SMS Integration
+  enableSMS                   Boolean @default(false)
+  smsProvider                 String? // TWILIO, VONAGE, LOCAL
+  smsApiKey                   String?
+  smsApiSecret                String?
+  smsSenderName               String?
+  
+  // Email Integration
+  enableEmail                 Boolean @default(false)
+  emailProvider               String  @default("SMTP") // SMTP, SENDGRID
+  emailSmtpHost               String?
+  emailSmtpPort               Int     @default(587)
+  emailSmtpUser               String?
+  emailSmtpPassword           String?
+  emailFromAddress            String?
+  emailFromName               String?
+  
+  // Inventory sync
+  enableInventorySync         Boolean @default(false)
+  inventorySyncFrequency      String  @default("HOURLY") // REALTIME, HOURLY, DAILY
+  externalInventorySystem     String? // ODOO, SHOPIFY, CUSTOM
+  inventorySyncUrl            String?
+  inventorySyncApiKey         String?
+  
+  // Accounting integration
+  enableAccountingSync        Boolean @default(false)
+  accountingSystem            String? // XERO, QUICKBOOKS, MYOB
+  accountingSyncApiKey        String?
+  accountingSyncFrequency     String  @default("DAILY")
+  
+  // Third-party integrations
+  integratedServices          String  @default("") // Comma-separated: LOYALTY_PROGRAM, INVENTORY_MANAGEMENT, ACCOUNTING, etc
+  
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("IntegrationSettings", fields: [merchantId], references: [id])
+  
+  @@index([merchantId])
 }

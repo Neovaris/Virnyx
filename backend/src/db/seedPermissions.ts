@@ -1,3 +1,5 @@
+// This script seeds the permissions and default roles for all merchants in the database.
+
 import { prisma } from "./prisma";
 
 async function seedPermissionsAndRoles() {
@@ -10,6 +12,8 @@ async function seedPermissionsAndRoles() {
     "sales:write",
     "users:read",
     "users:write",
+    "settings:read",
+    "settings:write",
   ];
 
   // 1️⃣ Seed permissions
@@ -28,63 +32,73 @@ async function seedPermissionsAndRoles() {
     select: { id: true },
   });
 
+  // Fetch perms once (no need to refetch per merchant)
+  const allPerms = await prisma.permission.findMany();
+
   for (const merchant of merchants) {
-    const adminRole = await prisma.role.upsert({
-      where: { merchantId_name: { merchantId: merchant.id, name: "ADMIN" } },
-      update: {},
-      create: {
-        merchantId: merchant.id,
+    // Define roles with their permissions
+    const roleDefs = [
+      {
         name: "ADMIN",
+        perms: permissions, // All permissions
       },
-    });
-
-    const cashierRole = await prisma.role.upsert({
-      where: { merchantId_name: { merchantId: merchant.id, name: "CASHIER" } },
-      update: {},
-      create: {
-        merchantId: merchant.id,
+      {
+        name: "MANAGER",
+        perms: [
+          "products:read",
+          "products:write",
+          "inventory:read",
+          "inventory:write",
+          "sales:read",
+          "sales:write",
+          "users:read",
+        ],
+      },
+      {
+        name: "STORE_MANAGER",
+        perms: [
+          "products:read",
+          "inventory:read",
+          "inventory:write",
+          "sales:read",
+          "sales:write",
+        ],
+      },
+      {
         name: "CASHIER",
+        perms: ["products:read", "inventory:read", "sales:read", "sales:write"],
       },
-    });
-
-    const allPerms = await prisma.permission.findMany();
-
-    const adminPermKeys = permissions;
-    const cashierPermKeys = [
-      "products:read",
-      "inventory:read",
-      "sales:read",
-      "sales:write",
+      {
+        name: "SALES_SUPERVISOR",
+        perms: ["products:read", "inventory:read", "sales:read", "sales:write"],
+      },
     ];
 
-    for (const perm of allPerms) {
-      if (adminPermKeys.includes(perm.key)) {
-        await prisma.rolePermission.upsert({
-          where: {
-            roleId_permissionId: {
-              roleId: adminRole.id,
-              permissionId: perm.id,
-            },
-          },
-          update: {},
-          create: {
-            roleId: adminRole.id,
-            permissionId: perm.id,
-          },
-        });
-      }
+    for (const roleDef of roleDefs) {
+      const role = await prisma.role.upsert({
+        where: {
+          merchantId_name: { merchantId: merchant.id, name: roleDef.name },
+        },
+        update: {},
+        create: {
+          merchantId: merchant.id,
+          name: roleDef.name,
+        },
+      });
 
-      if (cashierPermKeys.includes(perm.key)) {
+      for (const perm of allPerms) {
+        if (!roleDef.perms.includes(perm.key)) continue;
+
         await prisma.rolePermission.upsert({
           where: {
             roleId_permissionId: {
-              roleId: cashierRole.id,
+              roleId: role.id,
               permissionId: perm.id,
             },
           },
           update: {},
           create: {
-            roleId: cashierRole.id,
+            roleId: role.id,
             permissionId: perm.id,
           },
         });
@@ -97,4 +111,6 @@ async function seedPermissionsAndRoles() {
 
 seedPermissionsAndRoles()
   .catch(console.error)
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

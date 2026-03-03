@@ -24,6 +24,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const nav = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/products", label: "Products" },
+    { href: "/inventory", label: "Inventory" },
     { href: "/sales", label: "Sales" },
     { href: "/refunds", label: "Refunds" },
     { href: "/users", label: "Users" },
