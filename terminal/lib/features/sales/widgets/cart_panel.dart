@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../cart/cart_controller.dart';
+import '../parked/parked_sales_controller.dart';
+import 'package:go_router/go_router.dart';
 
 class CartPanel extends ConsumerWidget {
   const CartPanel({super.key});
@@ -17,9 +19,31 @@ class CartPanel extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text('Cart (${cart.itemCount})',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text(
+                'Cart (${cart.itemCount})',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const Spacer(),
+              TextButton(
+                onPressed: cart.lines.isEmpty
+                    ? null
+                    : () {
+                        // park the cart then clear it
+                        ref.read(parkedSalesProvider.notifier).park(cart);
+                        ctrl.clear();
+
+                        // open end drawer (held sales)
+                        Scaffold.of(context).openEndDrawer();
+                      },
+                child: const Text('Hold'),
+              ),
+              TextButton(
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
+                child: const Text('Held'),
+              ),
               TextButton(
                 onPressed: cart.lines.isEmpty ? null : ctrl.clear,
                 child: const Text('Clear'),
@@ -40,7 +64,11 @@ class CartPanel extends ConsumerWidget {
                       itemBuilder: (context, i) {
                         final line = lines[i];
                         return ListTile(
-                          title: Text(line.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          title: Text(
+                            line.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           subtitle: Text('₵ ${line.price.toStringAsFixed(2)}'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -50,7 +78,12 @@ class CartPanel extends ConsumerWidget {
                                 onPressed: () => ctrl.dec(line.productId),
                                 icon: const Icon(Icons.remove_circle_outline),
                               ),
-                              Text('${line.qty}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                              Text(
+                                '${line.qty}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               IconButton(
                                 tooltip: 'Increase',
                                 onPressed: () => ctrl.inc(line.productId),
@@ -81,7 +114,11 @@ class CartPanel extends ConsumerWidget {
                   _row('Subtotal', '₵ ${cart.subtotal.toStringAsFixed(2)}'),
                   _row('Tax', '₵ ${cart.tax.toStringAsFixed(2)}'),
                   const Divider(),
-                  _row('Total', '₵ ${cart.total.toStringAsFixed(2)}', bold: true),
+                  _row(
+                    'Total',
+                    '₵ ${cart.total.toStringAsFixed(2)}',
+                    bold: true,
+                  ),
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
@@ -89,11 +126,7 @@ class CartPanel extends ConsumerWidget {
                     child: FilledButton(
                       onPressed: cart.lines.isEmpty
                           ? null
-                          : () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Pay (v0.1 stub)')),
-                              );
-                            },
+                          : () => context.go('/pay'),
                       child: const Text('Pay'),
                     ),
                   ),
@@ -107,7 +140,9 @@ class CartPanel extends ConsumerWidget {
   }
 
   static Widget _row(String label, String value, {bool bold = false}) {
-    final style = bold ? const TextStyle(fontWeight: FontWeight.w800) : const TextStyle();
+    final style = bold
+        ? const TextStyle(fontWeight: FontWeight.w800)
+        : const TextStyle();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../cart/cart_controller.dart';
+import '../catalog/catalog_provider.dart';
+import '../search/search_controller.dart';
 
 class ProductGrid extends ConsumerWidget {
   const ProductGrid({super.key});
@@ -10,10 +13,39 @@ class ProductGrid extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     final crossAxisCount = width >= 1400 ? 5 : width >= 1100 ? 4 : 3;
 
-    final products = List.generate(
-      24,
-      (i) => _P(id: 'p_${i + 1}', name: 'Product ${i + 1}', price: (i + 1) * 2.5),
-    );
+    final catalogState = ref.watch(catalogProvider);
+    final products = catalogState.items;
+
+    final q = ref.watch(salesSearchProvider).trim().toLowerCase();
+
+    final filtered = q.isEmpty
+        ? products
+        : products.where((p) {
+            return p.name.toLowerCase().contains(q) ||
+                p.id.toLowerCase().contains(q) ||
+                p.sku.toLowerCase().contains(q) ||
+                p.barcode.toLowerCase().contains(q);
+          }).toList();
+
+    if (catalogState.loading && products.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (catalogState.error != null && products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Failed to load products:\n${catalogState.error}'),
+            const SizedBox(height: 10),
+            FilledButton(
+              onPressed: () => ref.read(catalogProvider.notifier).refresh(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),
@@ -23,9 +55,9 @@ class ProductGrid extends ConsumerWidget {
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
-      itemCount: products.length,
+      itemCount: filtered.length,
       itemBuilder: (context, i) {
-        final p = products[i];
+        final p = filtered[i];
         return Card(
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
@@ -42,12 +74,16 @@ class ProductGrid extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Expanded(
-                    child: Center(child: Icon(Icons.inventory_2_outlined, size: 42)),
+                    child: Center(
+                      child: Icon(Icons.inventory_2_outlined, size: 42),
+                    ),
                   ),
                   Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 6),
-                  Text('₵ ${p.price.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    '₵ ${p.price.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ),
@@ -56,11 +92,4 @@ class ProductGrid extends ConsumerWidget {
       },
     );
   }
-}
-
-class _P {
-  final String id;
-  final String name;
-  final double price;
-  _P({required this.id, required this.name, required this.price});
 }
