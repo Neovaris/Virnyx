@@ -10,14 +10,11 @@ class CategorySidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final products = ref.watch(catalogProvider);
+    final catalogState = ref.watch(catalogProvider);
+    final products = catalogState.items;
 
-    // Build categories from catalog (dynamic)
-    final set = <String>{'All'};
-    for (final p in products) {
-      set.add(p.category);
-    }
-    final categories = set.toList()..sort((a, b) => a == 'All' ? -1 : a.compareTo(b));
+    // v0.1 backend currently has no category field -> keep a stable fallback
+    final categories = const ['All', 'Uncategorized'];
 
     final selected = ref.watch(selectedCategoryProvider);
 
@@ -66,8 +63,19 @@ class CategorySidebar extends ConsumerWidget {
               if (isSelected) const SizedBox(width: 8),
               Text(
                 c,
-                style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500),
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
+              const Spacer(),
+              if (c == 'All')
+                Text(
+                  '${products.length}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
         );

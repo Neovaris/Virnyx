@@ -7,34 +7,47 @@ import '../features/sales/sales_screen.dart';
 import '../features/sales/payment/payment_screen.dart';
 import '../features/sales/sales/sales_history_screen.dart';
 import '../features/sales/sales/sale_details_screen.dart';
+import '../features/auth/auth_provider.dart';
+import '../features/auth/login_screen.dart';
+import '../features/shift/open_shift_screen.dart';
 
 GoRouter appRouter(WidgetRef ref) {
   return GoRouter(
     initialLocation: '/sales',
     routes: [
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/open-shift',
+        builder: (context, state) => const OpenShiftScreen(),
+      ),
       GoRoute(
         path: '/shift',
         builder: (context, state) => const ShiftGateScreen(),
       ),
       GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
-      GoRoute(path: '/pay', builder: (context, state) => const PaymentScreen()),
-      GoRoute(
-        path: '/history',
-        builder: (context, state) => const SalesHistoryScreen(),
-      ),
+      GoRoute(path: '/history', builder: (_, __) => const SalesHistoryScreen()),
       GoRoute(
         path: '/history/:id',
-        builder: (context, state) =>
+        builder: (_, state) =>
             SaleDetailsScreen(saleId: state.pathParameters['id']!),
       ),
+      GoRoute(path: '/pay', builder: (_, __) => const PaymentScreen()),
     ],
     redirect: (context, state) {
-      // Watching forces GoRouter to reevaluate redirects when shift changes
-      final shift = ref.watch(shiftProvider);
+      final auth = ref.read(authProvider);
+      final shift = ref.read(shiftProvider);
 
-      final goingToShift = state.matchedLocation == '/shift';
-      if (!shift.active && !goingToShift) return '/shift';
-      if (shift.active && goingToShift) return '/sales';
+      final loc = state.matchedLocation;
+      final loggingIn = loc == '/login';
+      final openingShift = loc == '/open-shift';
+
+      if (!auth.loggedIn && !loggingIn) return '/login';
+
+      if (auth.loggedIn && !shift.active && !openingShift) return '/open-shift';
+
+      if (auth.loggedIn && shift.active && (loggingIn || openingShift))
+        return '/sales';
+
       return null;
     },
   );

@@ -5,19 +5,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme_controller.dart';
 import '../shift/shift_controller.dart';
+
 import 'cart/cart_controller.dart';
+import 'catalog/catalog_models.dart';
 import 'catalog/catalog_provider.dart';
+
 import 'search/clear_search_signal.dart';
 import 'search/scan_event.dart';
 import 'search/search_controller.dart';
+
 import 'widgets/cart_panel.dart';
 import 'widgets/category_sidebar.dart';
 import 'widgets/product_grid.dart';
+
 import 'parked/parked_sales_controller.dart';
 
-final _lastHandledScanIdProvider = NotifierProvider<_LastHandledScanId, int>(
-  _LastHandledScanId.new,
-);
+final _lastHandledScanIdProvider =
+    NotifierProvider<_LastHandledScanId, int>(_LastHandledScanId.new);
 
 class _LastHandledScanId extends Notifier<int> {
   @override
@@ -28,11 +32,22 @@ class _LastHandledScanId extends Notifier<int> {
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
 
+  CatalogProduct? _firstWhereOrNull(
+    List<CatalogProduct> items,
+    bool Function(CatalogProduct p) test,
+  ) {
+    for (final p in items) {
+      if (test(p)) return p;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 980;
 
+    // Listen for scan submit events (Enter)
     ref.listen<ScanEvent?>(scanEventProvider, (prev, next) {
       if (next == null) return;
 
@@ -44,7 +59,21 @@ class SalesScreen extends ConsumerWidget {
       final input = next.value.trim();
       if (input.isEmpty) return;
 
-      final catalog = ref.read(catalogProvider);
+      final catalogState = ref.read(catalogProvider);
+
+      // If catalog is still loading, just warn (don’t fail)
+      if (catalogState.loading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Catalog is still loading…')),
+          );
+        });
+        ref.read(scanEventProvider.notifier).clear();
+        return;
+      }
+
+      final catalog = catalogState.items;
 
       // ✅ barcode detection mode:
       // length >= 8 AND numbers only => barcode
@@ -54,42 +83,45 @@ class SalesScreen extends ConsumerWidget {
 
       if (isBarcode) {
         // barcode match (prefix-friendly)
-        match = catalog.cast<CatalogProduct?>().firstWhere(
-          (p) => p!.barcode.startsWith(input),
-          orElse: () => null,
+        match = _firstWhereOrNull(
+          catalog,
+          (p) => p.barcode.trim().isNotEmpty && p.barcode.startsWith(input),
         );
       } else {
         final q = input.toLowerCase();
 
-        // SKU exact match
-        match = catalog.cast<CatalogProduct?>().firstWhere(
-          (p) => p!.id.toLowerCase() == q,
-          orElse: () => null,
+        // SKU or ID exact match
+        match = _firstWhereOrNull(
+          catalog,
+          (p) =>
+              p.id.toLowerCase() == q ||
+              (p.sku.trim().isNotEmpty && p.sku.toLowerCase() == q),
         );
 
         // fallback: name contains
-        match ??= catalog.cast<CatalogProduct?>().firstWhere(
-          (p) => p!.name.toLowerCase().contains(q),
-          orElse: () => null,
+        match ??= _firstWhereOrNull(
+          catalog,
+          (p) => p.name.toLowerCase().contains(q),
         );
       }
 
       if (match != null) {
-        ref
-            .read(cartProvider.notifier)
-            .add(productId: match.id, name: match.name, price: match.price);
+        ref.read(cartProvider.notifier).add(
+              productId: match.id,
+              name: match.name,
+              price: match.price,
+            );
 
         HapticFeedback.lightImpact();
 
         // Auto-clear + refocus (POS behavior)
         ref.read(clearSearchSignalProvider.notifier).bump();
       } else {
-        // show toast safely next frame
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('No match for "$input"')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No match for "$input"')),
+          );
         });
       }
 
@@ -106,8 +138,8 @@ class SalesScreen extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 720),
-                child: _SalesSearchField(),
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: const _SalesSearchField(),
               ),
             ),
           ],
@@ -120,8 +152,17 @@ class SalesScreen extends ConsumerWidget {
             icon: const Icon(Icons.brightness_6),
           ),
           IconButton(
-            tooltip: 'Close shift (dev)',
-            onPressed: () => ref.read(shiftProvider.notifier).closeShift(),
+            tooltip: 'Close shift',
+            onPressed: () async {
+              await ref.read(shiftProvider.notifier).closeShift();
+              if (!context.mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Shift closed')),
+              );
+
+              context.go('/open-shift');
+            },
             icon: const Icon(Icons.logout),
           ),
           IconButton(
@@ -132,7 +173,7 @@ class SalesScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      endDrawer: _ParkedSalesDrawer(),
+      endDrawer: const _ParkedSalesDrawer(),
       body: isWide ? const _WideLayout() : const _CompactLayout(),
     );
   }
@@ -188,6 +229,7 @@ class _SalesSearchFieldState extends ConsumerState<_SalesSearchField> {
     super.initState();
     _c = TextEditingController(text: ref.read(salesSearchProvider));
     _focus = FocusNode();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
     });
@@ -204,10 +246,12 @@ class _SalesSearchFieldState extends ConsumerState<_SalesSearchField> {
     _c.clear();
     ref.read(salesSearchProvider.notifier).clear();
     _focus.requestFocus();
+    setState(() {}); // refresh suffixIcon visibility
   }
 
   @override
   Widget build(BuildContext context) {
+    // When we bump the signal, we clear + refocus.
     ref.listen<int>(clearSearchSignalProvider, (prev, next) {
       _clearAndRefocus();
     });
@@ -225,12 +269,15 @@ class _SalesSearchFieldState extends ConsumerState<_SalesSearchField> {
         focusNode: _focus,
         autofocus: true,
         textInputAction: TextInputAction.search,
-        onChanged: (v) => ref.read(salesSearchProvider.notifier).setQuery(v),
+        onChanged: (v) {
+          ref.read(salesSearchProvider.notifier).setQuery(v);
+          setState(() {}); // keep suffixIcon in sync
+        },
         onSubmitted: (v) => ref.read(scanEventProvider.notifier).submit(v),
         decoration: InputDecoration(
           hintText: 'Search product or scan barcode…',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: _c.text.isEmpty
+          suffixIcon: _c.text.trim().isEmpty
               ? null
               : IconButton(
                   tooltip: 'Clear',
@@ -290,10 +337,10 @@ class _ParkedSalesDrawer extends ConsumerWidget {
                                       .read(parkedSalesProvider.notifier)
                                       .removeById(s.id);
                                   if (sale != null) {
-                                    ref
-                                        .read(cartProvider.notifier)
-                                        .load(sale.cart);
-                                    Navigator.of(context).maybePop(); // close drawer
+                                    ref.read(cartProvider.notifier).load(
+                                          sale.cart,
+                                        );
+                                    Navigator.of(context).maybePop();
                                   }
                                 },
                                 child: const Text('Resume'),

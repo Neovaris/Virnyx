@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../cart/cart_controller.dart';
 import '../catalog/catalog_provider.dart';
 import '../search/search_controller.dart';
-import '../category/category_controller.dart';
 
 class ProductGrid extends ConsumerWidget {
   const ProductGrid({super.key});
@@ -12,29 +11,41 @@ class ProductGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
-    final crossAxisCount = width >= 1400
-        ? 5
-        : width >= 1100
-        ? 4
-        : 3;
+    final crossAxisCount = width >= 1400 ? 5 : width >= 1100 ? 4 : 3;
 
-    final products = ref.watch(catalogProvider);
+    final catalogState = ref.watch(catalogProvider);
+    final products = catalogState.items;
+
     final q = ref.watch(salesSearchProvider).trim().toLowerCase();
 
-    final selectedCategory = ref.watch(selectedCategoryProvider);
-
-    final byCategory = selectedCategory == 'All'
-        ? products
-        : products.where((p) => p.category == selectedCategory).toList();
-
     final filtered = q.isEmpty
-        ? byCategory
-        : byCategory.where((p) {
-            final name = p.name.toLowerCase();
-            final sku = p.id.toLowerCase();
-            final barcode = p.barcode.toLowerCase();
-            return name.contains(q) || sku.contains(q) || barcode.contains(q);
+        ? products
+        : products.where((p) {
+            return p.name.toLowerCase().contains(q) ||
+                p.id.toLowerCase().contains(q) ||
+                p.sku.toLowerCase().contains(q) ||
+                p.barcode.toLowerCase().contains(q);
           }).toList();
+
+    if (catalogState.loading && products.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (catalogState.error != null && products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Failed to load products:\n${catalogState.error}'),
+            const SizedBox(height: 10),
+            FilledButton(
+              onPressed: () => ref.read(catalogProvider.notifier).refresh(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(12),
@@ -51,9 +62,11 @@ class ProductGrid extends ConsumerWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {
-              ref
-                  .read(cartProvider.notifier)
-                  .add(productId: p.id, name: p.name, price: p.price);
+              ref.read(cartProvider.notifier).add(
+                    productId: p.id,
+                    name: p.name,
+                    price: p.price,
+                  );
             },
             child: Padding(
               padding: const EdgeInsets.all(12),

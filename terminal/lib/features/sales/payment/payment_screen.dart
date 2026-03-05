@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../cart/cart_controller.dart';
-import '../sales/sale_models.dart';
-import '../sales/sales_history_controller.dart';
-import 'payment_method.dart';
+import '../history/sales_api.dart';
+import '../history/sales_models.dart';
+import '../payment/payment_method.dart';
+import '../../shift/shift_controller.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
   const PaymentScreen({super.key});
@@ -19,7 +20,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   PaymentMethod method = PaymentMethod.cash;
 
   final tenderCtrl = TextEditingController(text: '');
-  final refCtrl = TextEditingController(text: ''); // momo/card reference (optional)
+  final refCtrl = TextEditingController(text: '');
+
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -42,11 +45,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
       return const Scaffold(body: SizedBox.shrink());
     }
 
-    final tenderedNow = _parseMoney(tenderCtrl.text);
-    final changeNow = (method == PaymentMethod.cash) ? (tenderedNow - total) : 0.0;
+    final tendered = _parseMoney(tenderCtrl.text);
+    final change = (method == PaymentMethod.cash) ? (tendered - total) : 0.0;
 
     final canConfirm = switch (method) {
-      PaymentMethod.cash => tenderedNow >= total && total > 0,
+      PaymentMethod.cash => tendered >= total && total > 0,
       PaymentMethod.momo => total > 0,
       PaymentMethod.card => total > 0,
     };
@@ -74,12 +77,18 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       children: [
                         const Text(
                           'Total',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const Spacer(),
                         Text(
                           '₵ ${total.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ],
                     ),
@@ -105,7 +114,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                         PaymentMethod.cash => _CashPanel(
                             total: total,
                             tenderCtrl: tenderCtrl,
-                            change: changeNow,
+                            change: change,
                           ),
                         PaymentMethod.momo => _RefPanel(
                             label: 'Mobile Money reference (optional)',
@@ -128,74 +137,88 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => context.pop(),
+                        onPressed: _submitting ? null : () => context.pop(),
                         child: const Text('Cancel'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: FilledButton(
-                        onPressed: !canConfirm
+                        onPressed: (!canConfirm || _submitting)
                             ? null
                             : () async {
-                                final cart = ref.read(cartProvider);
-                                if (cart.lines.isEmpty) return;
+                                setState(() => _submitting = true);
 
-                                final history = ref.read(salesHistoryProvider.notifier);
-                                final saleId = history.nextSaleId();
+                                try {
+                                  final cartNow = ref.read(cartProvider);
+                                  if (cartNow.lines.isEmpty) return;
 
-                                final lines = cart.lines.values.map((l) {
-                                  return SaleLine(
-                                    productId: l.productId,
-                                    name: l.name,
-                                    unitPrice: l.price,
-                                    qty: l.qty,
+                                  final lines = cartNow.lines.values.map((l) {
+                                    return SaleLine(
+                                      productId: l.productId,
+                                      name: l.name,
+                                      unitPrice: l.price,
+                                      qty: l.qty,
+                                    );
+                                  }).toList();
+
+                                  final tenderedValue = (method == PaymentMethod.cash)
+                                      ? _parseMoney(tenderCtrl.text)
+                                      : null;
+
+                                  final changeValue =
+                                      (method == PaymentMethod.cash && tenderedValue != null)
+                                          ? (tenderedValue - cartNow.total)
+                                          : null;
+
+                                  final refText = refCtrl.text.trim();
+                                  final reference = (method == PaymentMethod.momo || method == PaymentMethod.card)
+                                      ? (refText.isEmpty ? null : refText)
+                                      : null;
+
+                                  final shift = ref.read(shiftProvider);
+                                  final shiftId = shift.shiftId;
+                                  // storeId (optional): if you track it in auth/shift later
+                                  const storeId = null;
+
+                                  final sale = await ref.read(salesApiProvider).createSale(
+                                        method: method,
+                                        lines: lines,
+                                        subtotal: cartNow.subtotal,
+                                        tax: cartNow.tax,
+                                        total: cartNow.total,
+                                        tendered: tenderedValue,
+                                        change: changeValue,
+                                        reference: reference,
+                                        shiftId: shiftId,
+                                        storeId: storeId,
+                                      );
+
+                                  // clear cart after backend confirms
+                                  ref.read(cartProvider.notifier).clear();
+
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Sale saved: ${sale.id}')),
                                   );
-                                }).toList();
 
-                                final tendered = (method == PaymentMethod.cash)
-                                    ? (double.tryParse(tenderCtrl.text.trim()) ?? 0)
-                                    : null;
-
-                                final change = (method == PaymentMethod.cash && tendered != null)
-                                    ? (tendered - cart.total)
-                                    : null;
-
-                                final refText = refCtrl.text.trim();
-                                final reference = (method == PaymentMethod.momo ||
-                                        method == PaymentMethod.card)
-                                    ? (refText.isEmpty ? null : refText)
-                                    : null;
-
-                                final sale = CompletedSale(
-                                  saleId: saleId,
-                                  createdAt: DateTime.now(),
-                                  method: method,
-                                  lines: lines,
-                                  subtotal: cart.subtotal,
-                                  tax: cart.tax,
-                                  total: cart.total,
-                                  tendered: tendered,
-                                  change: change,
-                                  reference: reference,
-                                  cashierId: null,
-                                  shiftId: null,
-                                  storeId: null,
-                                );
-
-                                history.add(sale);
-
-                                // v0.1: finalize locally
-                                ref.read(cartProvider.notifier).clear();
-
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Sale $saleId captured (v0.1 local)')),
-                                );
-
-                                context.go('/sales');
+                                  context.go('/sales');
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Payment failed: $e')),
+                                  );
+                                } finally {
+                                  if (mounted) setState(() => _submitting = false);
+                                }
                               },
-                        child: const Text('Confirm Payment'),
+                        child: _submitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Confirm Payment'),
                       ),
                     ),
                   ],
@@ -212,7 +235,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 class _MethodTabs extends StatelessWidget {
   final PaymentMethod value;
   final ValueChanged<PaymentMethod> onChanged;
-
   const _MethodTabs({required this.value, required this.onChanged});
 
   @override
@@ -272,8 +294,7 @@ class _CashPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Cash Payment',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        const Text('Cash Payment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         TextField(
           controller: tenderCtrl,
@@ -352,8 +373,7 @@ class _RefPanel extends StatelessWidget {
           children: [
             Icon(icon),
             const SizedBox(width: 8),
-            const Text('Reference',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const Text('Reference', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ],
         ),
         const SizedBox(height: 12),
@@ -365,9 +385,7 @@ class _RefPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'v0.1: local sale capture only. Next: POST /sales to backend + receipt.',
-        ),
+        const Text('v0.1: We store reference + send it to backend when creating the sale.'),
       ],
     );
   }

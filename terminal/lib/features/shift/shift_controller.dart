@@ -17,7 +17,13 @@ class ShiftState {
     required this.openedAt,
   });
 
-  const ShiftState.closed() : active = false, shiftId = null, openingCash = 0, openedAt = null;
+  const ShiftState.closed()
+      : active = false,
+        shiftId = null,
+        openingCash = 0,
+        openedAt = null;
+
+  bool get isOpen => active; // ✅ add this
 
   Map<String, dynamic> toJson() => {
         'active': active,
