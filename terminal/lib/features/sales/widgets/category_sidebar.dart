@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CategorySidebar extends StatelessWidget {
+import '../catalog/catalog_provider.dart';
+import '../category/category_controller.dart';
+
+class CategorySidebar extends ConsumerWidget {
   final bool compact;
   const CategorySidebar({super.key, this.compact = false});
 
   @override
-  Widget build(BuildContext context) {
-    final categories = const ['All', 'Drinks', 'Snacks', 'Groceries', 'Cosmetics', 'Electronics'];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref.watch(catalogProvider);
+
+    // Build categories from catalog (dynamic)
+    final set = <String>{'All'};
+    for (final p in products) {
+      set.add(p.category);
+    }
+    final categories = set.toList()..sort((a, b) => a == 'All' ? -1 : a.compareTo(b));
+
+    final selected = ref.watch(selectedCategoryProvider);
 
     if (compact) {
       return Padding(
@@ -17,9 +30,14 @@ class CategorySidebar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: categories.first,
-                items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (_) {},
+                value: categories.contains(selected) ? selected : 'All',
+                items: categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  ref.read(selectedCategoryProvider.notifier).set(v);
+                },
                 decoration: const InputDecoration(border: OutlineInputBorder()),
               ),
             ),
@@ -34,18 +52,22 @@ class CategorySidebar extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (context, i) {
         final c = categories[i];
-        final selected = i == 0; // v0.1 dummy
+        final isSelected = c == selected;
+
         return FilledButton.tonal(
-          onPressed: () {},
+          onPressed: () => ref.read(selectedCategoryProvider.notifier).set(c),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             alignment: Alignment.centerLeft,
           ),
           child: Row(
             children: [
-              if (selected) const Icon(Icons.check, size: 18),
-              if (selected) const SizedBox(width: 8),
-              Text(c),
+              if (isSelected) const Icon(Icons.check, size: 18),
+              if (isSelected) const SizedBox(width: 8),
+              Text(
+                c,
+                style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500),
+              ),
             ],
           ),
         );

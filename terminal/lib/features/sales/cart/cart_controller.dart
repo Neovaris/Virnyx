@@ -44,6 +44,10 @@ class CartController extends Notifier<CartState> {
   @override
   CartState build() => const CartState.empty();
 
+    void load(CartState cart) {
+    state = cart;
+  }
+
   void clear() => state = const CartState.empty();
 
   void add({
