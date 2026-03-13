@@ -93,7 +93,7 @@ class ProductGrid extends ConsumerWidget {
                           Icon(
                             Icons.inventory_2_outlined,
                             size: 42,
-                            color: isOutOfStock ? Colors.grey : Colors.inherit,
+                            color: isOutOfStock ? Colors.grey : null,
                           ),
                           if (isOutOfStock)
                             Positioned.fill(
@@ -143,7 +143,7 @@ class ProductGrid extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isOutOfStock ? Colors.grey : Colors.inherit,
+                      color: isOutOfStock ? Colors.grey : null,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -165,7 +165,7 @@ class ProductGrid extends ConsumerWidget {
                     '₵ ${p.price.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: isOutOfStock ? Colors.grey : Colors.inherit,
+                      color: isOutOfStock ? Colors.grey : null,
                     ),
                   ),
                 ],

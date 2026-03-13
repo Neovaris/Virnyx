@@ -1,10 +1,8 @@
 // lib/features/sales/catalog/catalog_provider.dart
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../../../core/api/api_config.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'catalog_models.dart';
 
@@ -12,9 +10,11 @@ final catalogProvider =
     NotifierProvider<CatalogController, CatalogState>(CatalogController.new);
 
 class CatalogController extends Notifier<CatalogState> {
+  late final ApiClient _client;
 
   @override
   CatalogState build() {
+    _client = ref.read(apiProvider);
     // return initial state immediately, then load async
     Future.microtask(_loadInitial);
     return const CatalogState.initial();
@@ -28,37 +28,21 @@ class CatalogController extends Notifier<CatalogState> {
 
     try {
       final auth = ref.read(authProvider);
-      final token = auth.token;
-
-      if (token == null || token.isEmpty) {
+      if (!auth.loggedIn) {
         state = state.copyWith(
           loading: false,
-          error: 'Not logged in (missing token)',
+          error: 'Not logged in',
           items: const [],
         );
         return;
       }
 
-      final uri = Uri.parse('${ApiConfig.baseUrl}/products?limit=100&page=1');
-
-      final res = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final res = await _client.getJson(
+        '/products',
+        query: {'limit': '100', 'page': '1'},
       );
 
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        state = state.copyWith(
-          loading: false,
-          error: 'Products fetch failed: ${res.statusCode} ${res.body}',
-        );
-        return;
-      }
-
-      final decoded = jsonDecode(res.body) as Map<String, dynamic>;
-      final rawItems = (decoded['items'] as List?) ?? const [];
+      final rawItems = (res['items'] as List?) ?? const [];
 
       final items = rawItems.map((e) {
         final m = Map<String, dynamic>.from(e as Map);
