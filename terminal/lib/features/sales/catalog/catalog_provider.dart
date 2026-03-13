@@ -4,14 +4,14 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../../auth/auth_provider.dart';
+import '../../../core/api/api_config.dart';
+import '../../auth/providers/auth_provider.dart';
 import 'catalog_models.dart';
 
 final catalogProvider =
     NotifierProvider<CatalogController, CatalogState>(CatalogController.new);
 
 class CatalogController extends Notifier<CatalogState> {
-  static const _baseUrl = 'http://localhost:4000';
 
   @override
   CatalogState build() {
@@ -39,7 +39,7 @@ class CatalogController extends Notifier<CatalogState> {
         return;
       }
 
-      final uri = Uri.parse('$_baseUrl/products?limit=100&page=1');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/products?limit=100&page=1');
 
       final res = await http.get(
         uri,

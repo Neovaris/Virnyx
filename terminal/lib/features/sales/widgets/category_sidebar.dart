@@ -27,7 +27,7 @@ class CategorySidebar extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: categories.contains(selected) ? selected : 'All',
+                initialValue: categories.contains(selected) ? selected : 'All',
                 items: categories
                     .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
@@ -46,7 +46,7 @@ class CategorySidebar extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: categories.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
       itemBuilder: (context, i) {
         final c = categories[i];
         final isSelected = c == selected;

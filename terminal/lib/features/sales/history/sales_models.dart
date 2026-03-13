@@ -15,11 +15,12 @@ class SaleLine {
 
   double get lineTotal => unitPrice * qty;
 
-  factory SaleLine.fromJson(Map<String, dynamic> j) {
+ factory SaleLine.fromJson(Map<String, dynamic> j) {
+    final priceRaw = j['unitPrice'] ?? j['priceSnap'];
     return SaleLine(
       productId: (j['productId'] ?? '').toString(),
-      name: (j['name'] ?? '').toString(),
-      unitPrice: (j['unitPrice'] as num?)?.toDouble() ?? 0,
+      name: (j['name'] ?? j['nameSnap'] ?? '').toString(),
+      unitPrice: (priceRaw as num?)?.toDouble() ?? 0,
       qty: (j['qty'] as num?)?.toInt() ?? 0,
     );
   }
@@ -69,21 +70,31 @@ class Sale {
   });
 
   factory Sale.fromJson(Map<String, dynamic> j) {
-    final linesRaw = (j['lines'] as List?) ?? const [];
+    final linesRaw = (j['lines'] as List?) ?? (j['items'] as List?) ?? const [];
+    final paymentsRaw = (j['payments'] as List?) ?? const [];
+
+    Map<String, dynamic>? firstPayment;
+    if (paymentsRaw.isNotEmpty && paymentsRaw.first is Map) {
+      firstPayment = Map<String, dynamic>.from(paymentsRaw.first as Map);
+    }
+
     return Sale(
       id: (j['id'] ?? j['saleId'] ?? '').toString(),
       receiptNo: j['receiptNo']?.toString(),
-      createdAt: DateTime.tryParse((j['createdAt'] ?? '').toString()) ??
-          DateTime.now(),
-      method: PaymentMethodX.fromApi((j['method'] ?? j['paymentMethod'] ?? 'cash').toString()),
+      createdAt: DateTime.tryParse((j['createdAt'] ?? '').toString()) ?? DateTime.now(),
+      method: PaymentMethodX.fromApi(
+        (j['method'] ?? j['paymentMethod'] ?? firstPayment?['method'] ?? 'cash').toString(),
+      ),
       subtotal: (j['subtotal'] as num?)?.toDouble() ?? 0,
       tax: (j['tax'] as num?)?.toDouble() ?? 0,
       total: (j['total'] as num?)?.toDouble() ?? 0,
-      tendered: (j['tendered'] as num?)?.toDouble(),
-      change: (j['change'] as num?)?.toDouble(),
-      reference: j['reference']?.toString(),
+      tendered: (j['tendered'] as num?)?.toDouble() ??
+          (firstPayment?['tendered'] as num?)?.toDouble(),
+      change: (j['change'] as num?)?.toDouble() ??
+          (firstPayment?['change'] as num?)?.toDouble(),
+      reference: j['reference']?.toString() ?? firstPayment?['reference']?.toString(),
       cashierId: j['cashierId']?.toString(),
-      shiftId: j['shiftId']?.toString(),
+      shiftId: (j['shiftId'] ?? j['shiftSessionId'])?.toString(),
       storeId: j['storeId']?.toString(),
       lines: linesRaw
           .whereType<Map>()

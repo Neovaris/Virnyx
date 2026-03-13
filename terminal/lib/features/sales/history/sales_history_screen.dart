@@ -57,14 +57,14 @@ class SalesHistoryScreen extends ConsumerWidget {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: paged.items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final s = paged.items[i];
                     return Card(
                       child: ListTile(
                         title: Text(s.receiptNo ?? s.id),
                         subtitle: Text(
-                          '${s.method.label} • ₵ ${s.total.toStringAsFixed(2)} • ${s.createdAt}',
+                          '${s.method.name.toUpperCase()} • ₵ ${s.total.toStringAsFixed(2)} • ${s.createdAt}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

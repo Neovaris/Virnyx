@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme_controller.dart';
-import '../shift/shift_controller.dart';
+import '../shift/providers/shift_controller.dart';
 
 import 'cart/cart_controller.dart';
 import 'catalog/catalog_models.dart';
@@ -20,8 +20,9 @@ import 'widgets/product_grid.dart';
 
 import 'parked/parked_sales_controller.dart';
 
-final _lastHandledScanIdProvider =
-    NotifierProvider<_LastHandledScanId, int>(_LastHandledScanId.new);
+final _lastHandledScanIdProvider = NotifierProvider<_LastHandledScanId, int>(
+  _LastHandledScanId.new,
+);
 
 class _LastHandledScanId extends Notifier<int> {
   @override
@@ -106,11 +107,9 @@ class SalesScreen extends ConsumerWidget {
       }
 
       if (match != null) {
-        ref.read(cartProvider.notifier).add(
-              productId: match.id,
-              name: match.name,
-              price: match.price,
-            );
+        ref
+            .read(cartProvider.notifier)
+            .add(productId: match.id, name: match.name, price: match.price);
 
         HapticFeedback.lightImpact();
 
@@ -119,9 +118,9 @@ class SalesScreen extends ConsumerWidget {
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No match for "$input"')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('No match for "$input"')));
         });
       }
 
@@ -153,16 +152,7 @@ class SalesScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Close shift',
-            onPressed: () async {
-              await ref.read(shiftProvider.notifier).closeShift();
-              if (!context.mounted) return;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Shift closed')),
-              );
-
-              context.go('/open-shift');
-            },
+            onPressed: () => context.go('/close-shift'),
             icon: const Icon(Icons.logout),
           ),
           IconButton(
@@ -322,7 +312,7 @@ class _ParkedSalesDrawer extends ConsumerWidget {
                   ? const Center(child: Text('No held sales'))
                   : ListView.separated(
                       itemCount: parked.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final s = parked[i];
                         return ListTile(
@@ -337,9 +327,9 @@ class _ParkedSalesDrawer extends ConsumerWidget {
                                       .read(parkedSalesProvider.notifier)
                                       .removeById(s.id);
                                   if (sale != null) {
-                                    ref.read(cartProvider.notifier).load(
-                                          sale.cart,
-                                        );
+                                    ref
+                                        .read(cartProvider.notifier)
+                                        .load(sale.cart);
                                     Navigator.of(context).maybePop();
                                   }
                                 },
