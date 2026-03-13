@@ -3,10 +3,11 @@ import 'sales_api.dart';
 import 'sales_models.dart';
 
 final salesHistoryProvider =
-    AutoDisposeAsyncNotifierProvider<SalesHistoryController, PagedSales>(
-        SalesHistoryController.new);
+    AsyncNotifierProvider<SalesHistoryController, PagedSales>(
+  SalesHistoryController.new,
+);
 
-class SalesHistoryController extends AutoDisposeAsyncNotifier<PagedSales> {
+class SalesHistoryController extends AsyncNotifier<PagedSales> {
   int _page = 1;
   final int _limit = 30;
 
@@ -23,7 +24,7 @@ class SalesHistoryController extends AutoDisposeAsyncNotifier<PagedSales> {
   }
 
   Future<void> nextPage() async {
-    final current = state.valueOrNull;
+    final current = state.asData?.value;
     if (current == null) return;
     if (_page >= current.pages) return;
 
@@ -38,14 +39,6 @@ class SalesHistoryController extends AutoDisposeAsyncNotifier<PagedSales> {
   }
 }
 
-final saleDetailsProvider =
-    AutoDisposeFamilyAsyncNotifierProvider<SaleDetailsController, Sale, String>(
-        SaleDetailsController.new);
-
-class SaleDetailsController
-    extends AutoDisposeFamilyAsyncNotifier<Sale, String> {
-  @override
-  Future<Sale> build(String saleId) {
-    return ref.read(salesApiProvider).getSale(saleId);
-  }
-}
+final saleDetailsProvider = FutureProvider.family<Sale, String>((ref, saleId) {
+  return ref.read(salesApiProvider).getSale(saleId);
+});

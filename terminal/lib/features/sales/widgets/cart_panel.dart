@@ -60,7 +60,7 @@ class CartPanel extends ConsumerWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.all(8),
                       itemCount: lines.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final line = lines[i];
                         return ListTile(

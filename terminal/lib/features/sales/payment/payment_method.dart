@@ -4,29 +4,35 @@ extension PaymentMethodX on PaymentMethod {
   String get apiValue {
     switch (this) {
       case PaymentMethod.cash:
-        return 'cash';
+        return 'CASH';
       case PaymentMethod.momo:
-        return 'momo';
+        return 'MOMO';
       case PaymentMethod.card:
-        return 'card';
+        return 'CARD';
     }
   }
 
   String get label {
     switch (this) {
       case PaymentMethod.cash:
-        return 'Cash';
+        return 'CASH';
       case PaymentMethod.momo:
-        return 'MoMo';
+        return 'MOMO';
       case PaymentMethod.card:
-        return 'Card';
+        return 'CARD';
     }
   }
 
-  static PaymentMethod fromApi(String v) {
-    final s = v.trim().toLowerCase();
-    if (s == 'momo') return PaymentMethod.momo;
-    if (s == 'card') return PaymentMethod.card;
-    return PaymentMethod.cash;
+  static PaymentMethod fromApi(String value) {
+    switch (value.toUpperCase()) {
+      case 'CASH':
+        return PaymentMethod.cash;
+      case 'MOMO':
+        return PaymentMethod.momo;
+      case 'CARD':
+        return PaymentMethod.card;
+      default:
+        return PaymentMethod.cash;
+    }
   }
 }
