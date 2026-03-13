@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/api_config.dart';
+import './../../../core/api/api_config.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/shift_controller.dart';
 import '../data/shift_api.dart';

@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/api/api_config.dart';
-import '../../auth/providers/auth_provider.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../core/api/api_client.dart';
+import '../../core/api/api_provider.dart';
+import '../auth/providers/auth_provider.dart';
 
 class InventoryItem {
   final String productId;
@@ -22,15 +22,15 @@ class InventoryItem {
   factory InventoryItem.fromJson(Map<String, dynamic> j) {
     return InventoryItem(
       productId: (j['productId'] ?? '').toString(),
-      onHand: (j['onHand'] ?? 0) as int,
-      lowStockThreshold: (j['lowStockThreshold'] ?? 10) as int,
+      onHand: ((j['onHand'] ?? 0) as num).toInt(),
+      lowStockThreshold: ((j['lowStockThreshold'] ?? 10) as num).toInt(),
     );
   }
 }
 
 class InventoryState {
   final bool loading;
-  final Map<String, InventoryItem> items; // productId -> inventory
+  final Map<String, InventoryItem> items;
   final String? error;
 
   const InventoryState({
@@ -71,13 +71,16 @@ class InventoryState {
 }
 
 final inventoryProvider =
-    NotifierProvider<InventoryController, InventoryState>(InventoryController.new);
+    NotifierProvider<InventoryController, InventoryState>(
+  InventoryController.new,
+);
 
 class InventoryController extends Notifier<InventoryState> {
-  final String _baseUrl = ApiConfig.baseUrl;
+  late final ApiClient _client;
 
   @override
   InventoryState build() {
+    _client = ref.read(apiProvider);
     Future.microtask(_loadInventory);
     return const InventoryState.initial();
   }
@@ -87,9 +90,7 @@ class InventoryController extends Notifier<InventoryState> {
 
     try {
       final auth = ref.read(authProvider);
-      final token = auth.token;
-
-      if (token == null || token.isEmpty) {
+      if (!auth.loggedIn) {
         state = state.copyWith(
           loading: false,
           error: 'Not logged in',
@@ -98,28 +99,12 @@ class InventoryController extends Notifier<InventoryState> {
         return;
       }
 
-      final uri = Uri.parse('$_baseUrl/inventory');
-      final res = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final res = await _client.getJson('/inventory');
 
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        state = state.copyWith(
-          loading: false,
-          error: 'Failed to load inventory',
-        );
-        return;
-      }
-
-      final data = jsonDecode(res.body);
-      final items = (data['items'] ?? data ?? []) as List;
+      final rawItems = (res['items'] ?? res['data'] ?? []) as List;
 
       final inventoryMap = <String, InventoryItem>{};
-      for (final item in items) {
+      for (final item in rawItems) {
         final inv = InventoryItem.fromJson(item as Map<String, dynamic>);
         inventoryMap[inv.productId] = inv;
       }
@@ -127,6 +112,7 @@ class InventoryController extends Notifier<InventoryState> {
       state = state.copyWith(
         loading: false,
         items: inventoryMap,
+        clearError: true,
       );
     } catch (e) {
       state = state.copyWith(
@@ -136,6 +122,5 @@ class InventoryController extends Notifier<InventoryState> {
     }
   }
 
-  /// Refresh inventory (pull latest from server)
   Future<void> refresh() => _loadInventory();
 }

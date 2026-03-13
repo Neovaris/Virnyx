@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme_controller.dart';
+import '../../core/offline/offline_detector.dart';
 import '../shift/providers/shift_controller.dart';
+import 'offline/offline_sync_service.dart';
+import '../receipt/receipt_print_service.dart';
 
 import 'cart/cart_controller.dart';
 import 'catalog/catalog_models.dart';
@@ -144,6 +147,50 @@ class SalesScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          // Offline/Sync Status Indicator
+          Consumer(
+            builder: (context, ref, _) {
+              final isOffline = ref.watch(offlineDetectorProvider);
+              final syncState = ref.watch(offlineSyncProvider);
+              final printState = ref.watch(receiptPrintServiceProvider);
+
+              String tooltip = '';
+              IconData icon = Icons.cloud_done;
+              Color? color;
+
+              if (isOffline) {
+                tooltip = 'Offline mode - syncing ${syncState.pendingSalesCount} sales';
+                icon = Icons.cloud_off;
+                color = Colors.orange;
+              } else if (syncState.syncing) {
+                tooltip = 'Syncing sales...';
+                icon = Icons.cloud_upload;
+                color = Colors.blue;
+              } else if (syncState.hasPendingSales) {
+                tooltip = '${syncState.pendingSalesCount} sales pending';
+                icon = Icons.cloud_queue;
+                color = Colors.amber;
+              }
+
+              if (printState.queuedReceipts > 0) {
+                tooltip = '$tooltip\n${printState.queuedReceipts} receipts queued';
+              }
+
+              return Tooltip(
+                message: tooltip,
+                child: IconButton(
+                  icon: Icon(icon, color: color),
+                  onPressed: () {
+                    if (syncState.hasPendingSales && !syncState.syncing) {
+                      ref
+                          .read(offlineSyncProvider.notifier)
+                          .syncOfflineSales();
+                    }
+                  },
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Toggle theme',
             onPressed: () =>

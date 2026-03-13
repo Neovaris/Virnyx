@@ -5,12 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'dart:async';
 
 import '../../auth/providers/merchant_settings_provider.dart';
+import '../../inventory/inventory_provider.dart';
 import '../cart/cart_controller.dart';
 import '../history/sales_api.dart';
 import '../history/sales_models.dart';
 import '../payment/payment_method.dart';
 import '../../shift/providers/shift_controller.dart';
-import '../../receipt/receipt_printer_provider.dart';
+import '../../receipt/receipt_print_service.dart';
 import '../../../core/logging/error_logger.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
@@ -53,10 +54,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final merchantSettings = ref.watch(merchantSettingsProvider);
-    
+
     final subtotal = cart.subtotal;
     final discount = _parseMoney(discountCtrl.text);
-    final afterDiscount = (subtotal - discount).clamp(0, double.infinity);
+    final afterDiscount = (subtotal - discount)
+        .clamp(0, double.infinity)
+        .toDouble();
     final tax = merchantSettings.calculateTax(afterDiscount);
     final total = afterDiscount + tax;
 
@@ -92,157 +95,166 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Subtotal',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '₵ ${subtotal.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      if (discount > 0) ...[
-                        const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                         Row(
                           children: [
                             const Text(
-                              'Discount',
+                              'Subtotal',
                               style: TextStyle(fontSize: 14),
                             ),
                             const Spacer(),
                             Text(
-                              '- ₵ ${discount.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 14, color: Colors.green),
+                              '₵ ${subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 14),
                             ),
                           ],
                         ),
-                      ],
-                      if (merchantSettings.taxEnabled && tax > 0) ...[
+                        if (discount > 0) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Text(
+                                'Discount',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '- ₵ ${discount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (merchantSettings.taxEnabled && tax > 0) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(
+                                'Tax (${merchantSettings.taxRate.toStringAsFixed(1)}%)',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '₵ ${tax.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        const Divider(),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Text(
-                              'Tax (${merchantSettings.taxRate.toStringAsFixed(1)}%)',
-                              style: const TextStyle(fontSize: 14),
+                            const Text(
+                              'Total',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             const Spacer(),
                             Text(
-                              '₵ ${tax.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 14),
+                              '₵ ${total.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ],
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Text(
-                            'Total',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '₵ ${total.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: TextField(
-                    controller: discountCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    onChanged: (val) {
-                      final discountVal = _parseMoney(val);
-                      if (discountVal > subtotal) {
-                        // Prevent discount exceeding subtotal
-                        discountCtrl.text = subtotal.toStringAsFixed(2);
-                        discountCtrl.selection = TextSelection.fromPosition(
-                          TextPosition(offset: discountCtrl.text.length),
-                        );
-                      }
-                      setState(() {});
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Discount Amount (₵)',
-                      hintText: 'Enter discount',
-                      helperText: 'Max: ₵ ${subtotal.toStringAsFixed(2)}',
-                      prefixIcon: const Icon(Icons.discount),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextField(
+                      controller: discountCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (val) {
+                        final discountVal = _parseMoney(val);
+                        if (discountVal > subtotal) {
+                          discountCtrl.text = subtotal.toStringAsFixed(2);
+                          discountCtrl.selection = TextSelection.fromPosition(
+                            TextPosition(offset: discountCtrl.text.length),
+                          );
+                        }
+                        setState(() {});
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Discount Amount (₵)',
+                        hintText: 'Enter discount',
+                        helperText: 'Max: ₵ ${subtotal.toStringAsFixed(2)}',
+                        prefixIcon: const Icon(Icons.discount),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
                 const SizedBox(height: 12),
-              if (method == PaymentMethod.cash && discount > 0 && discountCtrl.text.isNotEmpty)
-                if (_parseMoney(discountCtrl.text) > subtotal)
+                if (method == PaymentMethod.cash &&
+                    discount > 0 &&
+                    discountCtrl.text.isNotEmpty)
+                  if (_parseMoney(discountCtrl.text) > subtotal)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          border: Border.all(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Discount cannot exceed subtotal',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                if (method == PaymentMethod.cash &&
+                    tendered < total &&
+                    tendered > 0)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        border: Border.all(color: Colors.red),
+                        color: Colors.orange.withOpacity(0.1),
+                        border: Border.all(color: Colors.orange),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        'Discount cannot exceed subtotal',
-                        style: TextStyle(color: Colors.red, fontSize: 12),
+                      child: Text(
+                        'Insufficient amount. Need ₵ ${(total - tendered).toStringAsFixed(2)} more',
+                        style: const TextStyle(
+                          color: Colors.orange,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
-              if (method == PaymentMethod.cash && tendered < total && tendered > 0)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      border: Border.all(color: Colors.orange),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Insufficient amount. Need ₵ ${(total - tendered).toStringAsFixed(2)} more',
-                      style: const TextStyle(color: Colors.orange, fontSize: 12),
-                    ),
-                  ),
+                _MethodTabs(
+                  value: method,
+                  onChanged: (m) {
+                    setState(() => method = m);
+                    HapticFeedback.selectionClick();
+                  },
                 ),
-              _MethodTabs(
-                value: method,
-                onChanged: (m) {
-                  setState(() => method = m);
-                  HapticFeedback.selectionClick();
-                },
-              ),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Card(
@@ -288,13 +300,22 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
                                 try {
                                   final cartNow = ref.read(cartProvider);
-                                  final settingsNow = ref.read(merchantSettingsProvider);
+                                  final settingsNow = ref.read(
+                                    merchantSettingsProvider,
+                                  );
                                   if (cartNow.lines.isEmpty) return;
 
                                   final subtotalNow = cartNow.subtotal;
-                                  final discountNow = _parseMoney(discountCtrl.text);
-                                  final afterDiscountNow = (subtotalNow - discountNow).clamp(0, double.infinity);
-                                  final taxNow = settingsNow.calculateTax(afterDiscountNow);
+                                  final discountNow = _parseMoney(
+                                    discountCtrl.text,
+                                  );
+                                  final afterDiscountNow =
+                                      (subtotalNow - discountNow)
+                                          .clamp(0, double.infinity)
+                                          .toDouble();
+                                  final taxNow = settingsNow.calculateTax(
+                                    afterDiscountNow,
+                                  );
                                   final totalNow = afterDiscountNow + taxNow;
 
                                   final lines = cartNow.lines.values.map((l) {
@@ -308,21 +329,21 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
                                   final tenderedValue =
                                       method == PaymentMethod.cash
-                                      ? _parseMoney(tenderCtrl.text)
-                                      : null;
+                                          ? _parseMoney(tenderCtrl.text)
+                                          : null;
 
                                   final changeValue =
                                       (method == PaymentMethod.cash &&
-                                          tenderedValue != null)
-                                      ? (tenderedValue - totalNow)
-                                      : null;
+                                              tenderedValue != null)
+                                          ? (tenderedValue - totalNow)
+                                          : null;
 
                                   final refText = refCtrl.text.trim();
                                   final reference =
                                       (method == PaymentMethod.momo ||
-                                          method == PaymentMethod.card)
-                                      ? (refText.isEmpty ? null : refText)
-                                      : null;
+                                              method == PaymentMethod.card)
+                                          ? (refText.isEmpty ? null : refText)
+                                          : null;
 
                                   final shift = ref.read(shiftProvider);
                                   final shiftId = shift.shiftId;
@@ -344,35 +365,105 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                                         storeId: storeId,
                                       );
 
+                                  // Refresh inventory after sale
+                                  await ref
+                                      .read(inventoryProvider.notifier)
+                                      .refresh();
+
+                                  // Clear cart
                                   ref.read(cartProvider.notifier).clear();
 
-                                  // Print receipt (non-blocking)
+                                  // Print receipt with error handling
                                   if (mounted) {
+                                    bool printSuccess = false;
+                                    String? printError;
+
                                     try {
-                                      unawaited(
-                                        ref.read(receiptPrinterProvider).printSale(sale),
-                                      );
+                                      await ref
+                                          .read(receiptPrintServiceProvider
+                                              .notifier)
+                                          .printSale(sale);
+                                      printSuccess = true;
                                     } catch (e) {
-                                      // Silent failure for printing - don't block payment
-                                      debugPrint('Receipt print error: $e');
+                                      printError = e.toString();
+                                      ErrorLogger.logBusinessError(
+                                        'Payment',
+                                        'Receipt print failed: $e',
+                                        details: {'saleId': sale.id},
+                                      );
                                     }
+
+                                    if (!mounted) return;
+
+                                    // Show success + print status
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        duration:
+                                            const Duration(seconds: 4),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Sale saved: ${sale.id}'),
+                                            if (!printSuccess)
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.only(
+                                                      top: 8,
+                                                    ),
+                                                child: Text(
+                                                  '⚠️ Receipt print failed. Will retry later.',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.yellow,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        action: printSuccess
+                                            ? null
+                                            : SnackBarAction(
+                                                label: 'Retry',
+                                                onPressed: () {
+                                                  ScaffoldMessenger.of(context)
+                                                      .hideCurrentSnackBar();
+                                                  ref
+                                                      .read(
+                                                        receiptPrintServiceProvider
+                                                            .notifier,
+                                                      )
+                                                      .printSale(sale)
+                                                      .catchError((e) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Retry failed: $e',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  });
+                                                },
+                                              ),
+                                      ),
+                                    );
                                   }
 
                                   if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Sale saved: ${sale.id}'),
-                                    ),
-                                  );
-
                                   context.go('/history/${sale.id}');
                                 } catch (e, st) {
                                   ErrorLogger.logBusinessError(
                                     'Payment',
                                     'Sale creation failed: $e',
-                                    details: {'total': totalNow, 'method': method.label},
+                                    details: {
+                                      'total': total,
+                                      'method': method.label,
+                                    },
                                   );
-                                  
+
                                   if (!mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
