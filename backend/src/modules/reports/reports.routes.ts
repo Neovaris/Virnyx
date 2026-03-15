@@ -591,4 +591,269 @@ export async function reportsRoutes(app: FastifyInstance) {
       return { date, storeId, count: items.length, items };
     },
   );
+
+  // =========================
+  // DASHBOARD METRICS (for admin panel overview)
+  // GET /reports/dashboard
+  // =========================
+  app.get(
+    "/reports/dashboard",
+    {
+      preHandler: [
+        authGuard,
+        tenantGuard as any,
+        requirePermission("sales:read"),
+      ],
+    },
+    async (req, reply) => {
+      const { merchantId, storeId } = req.user;
+      if (!storeId)
+        return reply.code(400).send({ message: "User has no storeId" });
+
+      // Today's metrics
+      const today = new Date().toISOString().slice(0, 10);
+      const todayFrom = startOfDayUTC(today);
+      const todayTo = endExclusiveUTC(today);
+
+      const [todaySalesAgg, todayCount] = await prisma.$transaction([
+        prisma.sale.aggregate({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: { gte: todayFrom, lt: todayTo },
+          },
+          _sum: { total: true },
+          _count: true,
+        }),
+        prisma.sale.count({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: { gte: todayFrom, lt: todayTo },
+          },
+        }),
+      ]);
+
+      const todayTotal = todaySalesAgg._sum.total ?? 0;
+      const todayTransactions = todayCount;
+      const todayAverage =
+        todayTransactions > 0 ? todayTotal / todayTransactions : 0;
+
+      // This month's metrics
+      const now = new Date();
+      const monthStart = new Date(now.getUTCFullYear(), now.getUTCMonth(), 1);
+      const monthStartStr = monthStart.toISOString().slice(0, 10);
+      const monthEnd = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 0);
+      const monthEndStr = monthEnd.toISOString().slice(0, 10);
+
+      const [monthSalesAgg, monthCount] = await prisma.$transaction([
+        prisma.sale.aggregate({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: {
+              gte: startOfDayUTC(monthStartStr),
+              lt: endExclusiveUTC(monthEndStr),
+            },
+          },
+          _sum: { total: true },
+          _count: true,
+        }),
+        prisma.sale.count({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: {
+              gte: startOfDayUTC(monthStartStr),
+              lt: endExclusiveUTC(monthEndStr),
+            },
+          },
+        }),
+      ]);
+
+      const monthTotal = monthSalesAgg._sum.total ?? 0;
+      const monthTransactions = monthCount;
+
+      // This year's metrics
+      const yearStart = new Date(now.getUTCFullYear(), 0, 1);
+      const yearStartStr = yearStart.toISOString().slice(0, 10);
+      const yearEnd = new Date(now.getUTCFullYear(), 11, 31);
+      const yearEndStr = yearEnd.toISOString().slice(0, 10);
+
+      const [yearSalesAgg, yearCount] = await prisma.$transaction([
+        prisma.sale.aggregate({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: {
+              gte: startOfDayUTC(yearStartStr),
+              lt: endExclusiveUTC(yearEndStr),
+            },
+          },
+          _sum: { total: true },
+          _count: true,
+        }),
+        prisma.sale.count({
+          where: {
+            merchantId,
+            storeId,
+            status: "COMPLETED",
+            createdAt: {
+              gte: startOfDayUTC(yearStartStr),
+              lt: endExclusiveUTC(yearEndStr),
+            },
+          },
+        }),
+      ]);
+
+      const yearTotal = yearSalesAgg._sum.total ?? 0;
+      const yearTransactions = yearCount;
+
+      // Top cashiers for today
+      const todaySales = await prisma.sale.findMany({
+        where: {
+          merchantId,
+          storeId,
+          status: "COMPLETED",
+          createdAt: { gte: todayFrom, lt: todayTo },
+        },
+        select: { cashierId: true, total: true },
+      });
+
+      const cashierMap = new Map<
+        string,
+        { cashierId: string; sales: number; revenue: number }
+      >();
+
+      for (const sale of todaySales) {
+        const cashierId = sale.cashierId ?? "UNKNOWN";
+        const existing = cashierMap.get(cashierId) || {
+          cashierId,
+          sales: 0,
+          revenue: 0,
+        };
+        existing.sales += 1;
+        existing.revenue += sale.total;
+        cashierMap.set(cashierId, existing);
+      }
+
+      let topCashiers = Array.from(cashierMap.values())
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
+
+      // Get cashier names
+      const cashierIds = topCashiers
+        .filter((c) => c.cashierId !== "UNKNOWN")
+        .map((c) => c.cashierId);
+      const users = await prisma.user.findMany({
+        where: { id: { in: cashierIds }, merchantId },
+        select: { id: true, fullName: true },
+      });
+      const uMap = new Map(users.map((u) => [u.id, u]));
+
+      topCashiers = topCashiers.map((c) => ({
+        ...c,
+        id: c.cashierId,
+        name:
+          c.cashierId === "UNKNOWN"
+            ? "Unknown"
+            : (uMap.get(c.cashierId)?.fullName ?? "Unknown"),
+      }));
+
+      return {
+        today: {
+          sales: todayTransactions,
+          revenue: todayTotal,
+          transactions: todayTransactions,
+          averageTransaction: todayAverage,
+        },
+        thisMonth: {
+          sales: monthTransactions,
+          revenue: monthTotal,
+          transactions: monthTransactions,
+        },
+        thisYear: {
+          sales: yearTransactions,
+          revenue: yearTotal,
+          transactions: yearTransactions,
+        },
+        topCashiers: topCashiers.map((c) => ({
+          id: c.id,
+          name: c.name,
+          sales: c.sales,
+          revenue: c.revenue,
+        })),
+      };
+    },
+  );
+
+  // =========================
+  // INVENTORY METRICS (for admin panel)
+  // GET /reports/inventory
+  // =========================
+  app.get(
+    "/reports/inventory",
+    {
+      preHandler: [
+        authGuard,
+        tenantGuard as any,
+        requirePermission("inventory:read"),
+      ],
+    },
+    async (req, reply) => {
+      const { merchantId, storeId } = req.user;
+      if (!storeId)
+        return reply.code(400).send({ message: "User has no storeId" });
+
+      // Get all products and calculate current stock levels
+      const products = await prisma.product.findMany({
+        where: { merchantId, isDeleted: false },
+        select: { id: true, price: true },
+      });
+
+      // Get stock ledger grouped by product
+      const stockLedger = await prisma.stockLedger.groupBy({
+        by: ["productId"],
+        where: { merchantId, storeId },
+        _sum: { qtyChange: true },
+      });
+
+      const stockMap = new Map(
+        stockLedger.map((s) => [s.productId, s._sum.qtyChange ?? 0]),
+      );
+
+      const inventoryThreshold = 10; // Default low stock threshold
+
+      let totalItems = 0;
+      let totalValue = 0;
+      let lowStockCount = 0;
+      let outOfStockCount = 0;
+
+      for (const product of products) {
+        const qtyOnHand = stockMap.get(product.id) ?? 0;
+        const itemValue = qtyOnHand * product.price;
+
+        totalItems += qtyOnHand;
+        totalValue += itemValue;
+
+        if (qtyOnHand === 0) {
+          outOfStockCount += 1;
+        } else if (qtyOnHand <= inventoryThreshold) {
+          lowStockCount += 1;
+        }
+      }
+
+      return {
+        totalItems,
+        totalValue,
+        lowStockItems: lowStockCount,
+        outOfStockItems: outOfStockCount,
+      };
+    },
+  );
 }

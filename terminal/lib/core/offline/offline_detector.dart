@@ -18,14 +18,14 @@ class OfflineDetector extends Notifier<bool> {
 
   void _initConnectivityListener() {
     _connectivity.onConnectivityChanged.listen((result) {
-      final isOffline = result.contains(ConnectivityResult.none);
+      final isOffline = result == ConnectivityResult.none;
       state = isOffline;
     });
   }
 
   Future<bool> checkConnectivity() async {
     final result = await _connectivity.checkConnectivity();
-    final isOffline = result.contains(ConnectivityResult.none);
+    final isOffline = result == ConnectivityResult.none;
     state = isOffline;
     return !isOffline;
   }

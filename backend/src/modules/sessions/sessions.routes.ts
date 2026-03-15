@@ -478,4 +478,147 @@ export async function sessionsRoutes(app: FastifyInstance) {
       };
     },
   );
+
+  // =========================
+  // ADMIN: LIST ALL SHIFTS
+  // GET /sessions/admin/all?from&to&page&limit&status&cashierId
+  // =========================
+  app.get(
+    "/sessions/admin/all",
+    { preHandler: [authGuard, tenantGuard, requirePermission("reports:read")] },
+    async (req, reply) => {
+      const { merchantId, storeId } = req.user;
+      if (!storeId)
+        return reply.code(400).send({ message: "User has no storeId" });
+
+      const q = req.query as any;
+
+      const page = Math.max(1, Number(q.page ?? 1));
+      const limit = Math.min(100, Math.max(1, Number(q.limit ?? 20)));
+      const skip = (page - 1) * limit;
+
+      const status =
+        typeof q.status === "string" &&
+        ["OPEN", "CLOSED"].includes(q.status.toUpperCase())
+          ? q.status.toUpperCase()
+          : undefined;
+
+      // Date range filters (optional)
+      const from = q.from ? new Date(String(q.from)) : undefined;
+      const to = q.to ? new Date(String(q.to)) : undefined;
+
+      if (from && Number.isNaN(from.getTime()))
+        return reply.code(400).send({ message: "Invalid from date" });
+      if (to && Number.isNaN(to.getTime()))
+        return reply.code(400).send({ message: "Invalid to date" });
+
+      const cashierId = q.cashierId ? String(q.cashierId) : undefined;
+
+      const where: any = {
+        merchantId,
+        storeId,
+        ...(status ? { status } : {}),
+        ...(cashierId ? { cashierId } : {}),
+      };
+
+      // Filter by openedAt range
+      if (from || to) {
+        where.openedAt = {
+          ...(from ? { gte: from } : {}),
+          ...(to ? { lte: to } : {}),
+        };
+      }
+
+      const [items, total] = await prisma.$transaction([
+        prisma.shiftSession.findMany({
+          where,
+          include: {
+            cashier: {
+              select: { id: true, fullName: true, email: true },
+            },
+          },
+          orderBy: { openedAt: "desc" },
+          skip,
+          take: limit,
+        }),
+        prisma.shiftSession.count({ where }),
+      ]);
+
+      // Enrich each shift with summary data
+      const enriched = await Promise.all(
+        items.map(async (session) => {
+          const from = session.openedAt;
+          const to = session.closedAt ?? new Date();
+
+          const salesAgg = await prisma.sale.aggregate({
+            where: {
+              merchantId,
+              storeId,
+              shiftSessionId: session.id,
+              status: "COMPLETED",
+              createdAt: { gte: from, lt: to },
+            },
+            _sum: { subtotal: true, discount: true, tax: true, total: true },
+            _count: true,
+          });
+
+          const refundsAgg = await prisma.refund.aggregate({
+            where: {
+              merchantId,
+              storeId,
+              shiftSessionId: session.id,
+              createdAt: { gte: from, lt: to },
+            },
+            _sum: { amount: true },
+            _count: true,
+          });
+
+          const payments = await prisma.payment.findMany({
+            where: {
+              sale: {
+                merchantId,
+                storeId,
+                shiftSessionId: session.id,
+                status: "COMPLETED",
+                createdAt: { gte: from, lt: to },
+              },
+            },
+            select: { method: true, amount: true },
+          });
+
+          const paymentsByMethod: Record<string, number> = {};
+          for (const p of payments) {
+            paymentsByMethod[p.method] =
+              (paymentsByMethod[p.method] ?? 0) + p.amount;
+          }
+
+          return {
+            ...session,
+            summary: {
+              sales: {
+                count: salesAgg._count,
+                subtotal: salesAgg._sum.subtotal ?? 0,
+                discount: salesAgg._sum.discount ?? 0,
+                tax: salesAgg._sum.tax ?? 0,
+                total: salesAgg._sum.total ?? 0,
+              },
+              refunds: {
+                count: refundsAgg._count,
+                amount: refundsAgg._sum.amount ?? 0,
+              },
+              payments: paymentsByMethod,
+            },
+          };
+        }),
+      );
+
+      return reply.send({
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        items: enriched,
+      });
+    },
+  );
 }
