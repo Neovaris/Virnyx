@@ -22,7 +22,6 @@ import 'widgets/category_sidebar.dart';
 import 'widgets/product_grid.dart';
 import '../shell/status/terminal_status_bar.dart';
 import '../shell/header/terminal_top_strip.dart';
-import '../shell/header/terminal_command_bar.dart';
 
 import 'parked/parked_sales_controller.dart';
 
@@ -140,7 +139,6 @@ class SalesScreen extends ConsumerWidget {
       body: Column(
         children: [
           const TerminalTopStrip(),
-          const TerminalCommandBar(),
           Expanded(
             child: isWide ? const _WideLayout() : const _CompactLayout(),
           ),
