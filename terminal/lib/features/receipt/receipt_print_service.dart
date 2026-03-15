@@ -87,7 +87,7 @@ class ReceiptPrintService extends Notifier<ReceiptPrintState> {
           'id': sale.id,
           'receiptNo': sale.receiptNo,
           'createdAt': sale.createdAt.toIso8601String(),
-          'method': sale.method.apiValue,
+          'method': sale.method.name,
           'subtotal': sale.subtotal,
           'tax': sale.tax,
           'total': sale.total,

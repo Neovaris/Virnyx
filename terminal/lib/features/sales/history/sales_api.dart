@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
@@ -6,7 +5,6 @@ import '../../../core/api/api_provider.dart';
 import '../../../core/offline/offline_db.dart';
 import '../../../core/offline/offline_detector.dart';
 import '../../../core/offline/offline_queue_models.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../payment/payment_method.dart';
 import '../../../core/logging/error_logger.dart';
 import 'sales_models.dart';
@@ -37,7 +35,9 @@ class SalesApi {
     String? storeId,
     String? idempotencyKey,
   }) async {
-    final isOnline = await ref.read(offlineDetectorProvider.notifier).checkConnectivity();
+    final isOnline = await ref
+        .read(offlineDetectorProvider.notifier)
+        .checkConnectivity();
     final tempId = idempotencyKey ?? generateTempSaleId();
 
     final body = {
@@ -60,7 +60,7 @@ class SalesApi {
           .toList(),
       'payments': [
         {
-          'method': method.apiValue,
+          'method': method.name,
           'amount': total,
           if (tendered != null) 'tendered': tendered,
           if (change != null) 'change': change,
@@ -70,7 +70,6 @@ class SalesApi {
     };
 
     if (!isOnline) {
-      // Queue for later sync
       final queued = QueuedSale(
         id: tempId,
         tempId: tempId,
@@ -84,7 +83,6 @@ class SalesApi {
         'Queued sale offline: $tempId',
       );
 
-      // Return a fake sale with the temp ID
       return Sale(
         id: tempId,
         createdAt: DateTime.now(),
@@ -101,7 +99,6 @@ class SalesApi {
       );
     }
 
-    // Try to submit online
     try {
       return await createSaleRaw(body);
     } catch (e) {
@@ -109,7 +106,7 @@ class SalesApi {
         'Sales',
         'Failed to create sale online, queuing for retry: $e',
       );
-      // Queue for later retry
+
       final queued = QueuedSale(
         id: tempId,
         tempId: tempId,
@@ -118,12 +115,11 @@ class SalesApi {
         syncError: e.toString(),
       );
       await _db.queueSale(queued);
-      
+
       rethrow;
     }
   }
 
-  /// Raw sale submission (used by offline sync too)
   Future<Sale> createSaleRaw(Map<String, dynamic> body) async {
     final res = await _client.postJson(
       '/sales',
@@ -150,24 +146,28 @@ class SalesApi {
     );
 
     if (res is Map<String, dynamic>) {
-      final rawItems = (res['items'] as List?) ?? const [];
-      final items = rawItems
-          .whereType<Map>()
-          .map((e) => Sale.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final rawItems = res['items'];
+      List<Map<String, dynamic>> items = [];
+      
+      if (rawItems is List) {
+        items = (rawItems as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
 
       return PagedSales(
         page: (res['page'] as num?)?.toInt() ?? page,
         limit: (res['limit'] as num?)?.toInt() ?? limit,
         total: (res['total'] as num?)?.toInt() ?? items.length,
         pages: (res['pages'] as num?)?.toInt() ?? 1,
-        items: items,
+        items: items.map((e) => Sale.fromJson(e)).toList(),
       );
     }
 
     if (res is List) {
-      final items = res
-          .whereType<Map>()
+      final items = (res as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
           .map((e) => Sale.fromJson(Map<String, dynamic>.from(e)))
           .toList();
 

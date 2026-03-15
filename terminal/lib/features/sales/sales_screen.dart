@@ -20,6 +20,9 @@ import 'search/search_controller.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/category_sidebar.dart';
 import 'widgets/product_grid.dart';
+import '../shell/status/terminal_status_bar.dart';
+import '../shell/header/terminal_top_strip.dart';
+import '../shell/header/terminal_command_bar.dart';
 
 import 'parked/parked_sales_controller.dart';
 
@@ -132,86 +135,18 @@ class SalesScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 12,
-        title: Row(
-          children: [
-            const Text('Virnyx'),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: const _SalesSearchField(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          // Offline/Sync Status Indicator
-          Consumer(
-            builder: (context, ref, _) {
-              final isOffline = ref.watch(offlineDetectorProvider);
-              final syncState = ref.watch(offlineSyncProvider);
-              final printState = ref.watch(receiptPrintServiceProvider);
-
-              String tooltip = '';
-              IconData icon = Icons.cloud_done;
-              Color? color;
-
-              if (isOffline) {
-                tooltip = 'Offline mode - syncing ${syncState.pendingSalesCount} sales';
-                icon = Icons.cloud_off;
-                color = Colors.orange;
-              } else if (syncState.syncing) {
-                tooltip = 'Syncing sales...';
-                icon = Icons.cloud_upload;
-                color = Colors.blue;
-              } else if (syncState.hasPendingSales) {
-                tooltip = '${syncState.pendingSalesCount} sales pending';
-                icon = Icons.cloud_queue;
-                color = Colors.amber;
-              }
-
-              if (printState.queuedReceipts > 0) {
-                tooltip = '$tooltip\n${printState.queuedReceipts} receipts queued';
-              }
-
-              return Tooltip(
-                message: tooltip,
-                child: IconButton(
-                  icon: Icon(icon, color: color),
-                  onPressed: () {
-                    if (syncState.hasPendingSales && !syncState.syncing) {
-                      ref
-                          .read(offlineSyncProvider.notifier)
-                          .syncOfflineSales();
-                    }
-                  },
-                ),
-              );
-            },
+      appBar: null,
+      endDrawer: const _ParkedSalesDrawer(),
+      body: Column(
+        children: [
+          const TerminalTopStrip(),
+          const TerminalCommandBar(),
+          Expanded(
+            child: isWide ? const _WideLayout() : const _CompactLayout(),
           ),
-          IconButton(
-            tooltip: 'Toggle theme',
-            onPressed: () =>
-                ref.read(themeControllerProvider.notifier).toggleLightDark(),
-            icon: const Icon(Icons.brightness_6),
-          ),
-          IconButton(
-            tooltip: 'Close shift',
-            onPressed: () => context.go('/close-shift'),
-            icon: const Icon(Icons.logout),
-          ),
-          IconButton(
-            tooltip: 'Sales history',
-            onPressed: () => context.go('/history'),
-            icon: const Icon(Icons.receipt_long),
-          ),
-          const SizedBox(width: 8),
+          const TerminalStatusBar(),
         ],
       ),
-      endDrawer: const _ParkedSalesDrawer(),
-      body: isWide ? const _WideLayout() : const _CompactLayout(),
     );
   }
 }
