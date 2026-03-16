@@ -51,6 +51,7 @@ model Merchant {
   receiptSettings       ReceiptSettings? @relation("ReceiptSettings")
   salesSettings         SalesSettings? @relation("SalesSettings")
   integrationSettings   IntegrationSettings? @relation("IntegrationSettings")
+  discountRules         DiscountRule[] @relation("MerchantDiscountRules")
 }
 
 model Store {
@@ -201,6 +202,7 @@ model Sale {
 
   subtotal Float
   discount Float @default(0)
+  discountPromoCode String? // Track which promo code was used
   tax      Float @default(0)
   total    Float
 
@@ -741,4 +743,49 @@ model IntegrationSettings {
   merchant Merchant @relation("IntegrationSettings", fields: [merchantId], references: [id])
   
   @@index([merchantId])
+}
+
+// Discount Rule Engine
+model DiscountRule {
+  id         String @id @default(uuid())
+  merchantId String
+  
+  // Basic info
+  name       String   // e.g., "Senior Discount", "Buy 2 Get 1", "10% Off"
+  code       String?  // Optional promo code (unique per merchant)
+  description String?
+  
+  // Rule type and conditions
+  type       String   // FIXED (₵ amount), PERCENTAGE (%), BOGO (Buy X Get Y), TIERED (qty-based)
+  value      Float    // For FIXED: amount in currency; For PERCENTAGE: percentage (e.g., 10)
+  
+  // Conditions
+  minOrderAmount   Float?   // Minimum subtotal to qualify
+  minItemQty       Int?     // Minimum quantity of specific item
+  maxDiscount      Float?   // Cap on discount amount
+  
+  // Applicability
+  applicableToAll  Boolean @default(true)
+  applicableProductIds String? // JSON array of product IDs: ["id1", "id2", ...]
+  
+  // Timing
+  startsAt DateTime?
+  endsAt   DateTime?
+  
+  // Status
+  isActive Boolean @default(true)
+  
+  // Tracking
+  maxUsesTotal     Int?     // Global usage limit
+  maxUsesPerCustomer Int?   // Per-customer limit (if tracking customer data)
+  usageCount       Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  merchant Merchant @relation("MerchantDiscountRules", fields: [merchantId], references: [id])
+  
+  @@unique([merchantId, code])
+  @@index([merchantId, isActive])
+  @@index([merchantId, code])
 }

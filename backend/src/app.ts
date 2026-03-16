@@ -14,6 +14,7 @@ import { usersRoutes } from "./modules/users/users.routes";
 import { receiptsRoutes } from "./modules/receipts/receipts.routes";
 import { rolesRoutes } from "./modules/roles/roles.routes";
 import { settingsRoutes } from "./modules/settings/settings.routes";
+import { discountsRoutes } from "./modules/discounts/discounts.routes";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ export function buildApp() {
   app.register(receiptsRoutes);
   app.register(rolesRoutes);
   app.register(settingsRoutes);
+  app.register(discountsRoutes);
 
   return app;
 }

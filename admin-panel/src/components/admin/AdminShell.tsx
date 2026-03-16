@@ -26,6 +26,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     { href: "/products", label: "Products" },
     { href: "/inventory", label: "Inventory" },
     { href: "/sales", label: "Sales" },
+    { href: "/discounts", label: "Discounts" },
     { href: "/shifts", label: "Shifts" },
     { href: "/cashiers", label: "Cashiers" },
     { href: "/reports", label: "Reports" },
