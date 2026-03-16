@@ -893,6 +893,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       if (body.receiptWidth !== undefined) data.receiptWidth = asString(body.receiptWidth);
       if (body.useLogoOnReceipt !== undefined) data.useLogoOnReceipt = asBool(body.useLogoOnReceipt);
       if (body.logoUrl !== undefined) data.logoUrl = asString(body.logoUrl) || null;
+      if (body.merchantName !== undefined) data.merchantName = asString(body.merchantName) || "VIRNYX POS";
+      if (body.storeName !== undefined) data.storeName = asString(body.storeName) || "Sales Receipt";
 
       if (body.customHeader !== undefined) data.customHeader = asString(body.customHeader) || null;
       if (body.customFooter !== undefined) data.customFooter = asString(body.customFooter) || null;

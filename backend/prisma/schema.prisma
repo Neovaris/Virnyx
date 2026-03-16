@@ -585,6 +585,10 @@ model ReceiptSettings {
   useLogoOnReceipt            Boolean @default(true)
   logoUrl                     String?
   
+  // Merchant/Store branding
+  merchantName                String  @default("VIRNYX POS")
+  storeName                   String  @default("Sales Receipt")
+  
   // Receipt content
   customHeader                String? // Max 100 chars
   customFooter                String? // Max 300 chars

@@ -17,8 +17,8 @@ class ApiException implements Exception {
     this.body,
     this.isNetworkError = false,
     this.isTimeout = false,
-  })  : is4xx = statusCode != null && statusCode >= 400 && statusCode < 500,
-        is5xx = statusCode != null && statusCode >= 500;
+  }) : is4xx = statusCode != null && statusCode >= 400 && statusCode < 500,
+       is5xx = statusCode != null && statusCode >= 500;
 
   @override
   String toString() => 'ApiException($statusCode): $message';
@@ -27,7 +27,7 @@ class ApiException implements Exception {
 class ApiClient {
   final String baseUrl;
   String? token;
-  
+
   // Retry configuration
   static const int maxRetries = 3;
   static const Duration initialRetryDelay = Duration(milliseconds: 500);
@@ -38,7 +38,8 @@ class ApiClient {
   Map<String, String> _headers({bool json = true}) {
     final h = <String, String>{};
     if (json) h['Content-Type'] = 'application/json';
-    if (token != null && token!.isNotEmpty) h['Authorization'] = 'Bearer $token';
+    if (token != null && token!.isNotEmpty)
+      h['Authorization'] = 'Bearer $token';
     return h;
   }
 
@@ -56,10 +57,10 @@ class ApiClient {
       } catch (e) {
         attempt++;
         if (attempt >= maxRetries) rethrow;
-        
+
         // Only retry on network/timeout errors, not 4xx
         if (e is ApiException && (e.is4xx)) rethrow;
-        
+
         // Exponential backoff: 500ms, 1s, 2s
         final delay = Duration(
           milliseconds: initialRetryDelay.inMilliseconds * (1 << (attempt - 1)),
@@ -76,11 +77,15 @@ class ApiClient {
     bool noRetry = false,
   }) async {
     if (noRetry) {
-      final res = await http.get(_u(path, query), headers: _headers()).timeout(timeout);
+      final res = await http
+          .get(_u(path, query), headers: _headers())
+          .timeout(timeout);
       return _decode(res);
     }
-    
-    return _retry(() => http.get(_u(path, query), headers: _headers()).then(_decode));
+
+    return _retry(
+      () => http.get(_u(path, query), headers: _headers()).then(_decode),
+    );
   }
 
   Future<Map<String, dynamic>> postJson(
@@ -89,20 +94,24 @@ class ApiClient {
     bool noRetry = false,
   }) async {
     if (noRetry) {
-      final res = await http.post(
-        _u(path),
-        headers: _headers(),
-        body: jsonEncode(body ?? const {}),
-      ).timeout(timeout);
+      final res = await http
+          .post(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .timeout(timeout);
       return _decode(res);
     }
-    
+
     return _retry(
-      () => http.post(
-        _u(path),
-        headers: _headers(),
-        body: jsonEncode(body ?? const {}),
-      ).then(_decode),
+      () => http
+          .post(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .then(_decode),
     );
   }
 
@@ -112,20 +121,51 @@ class ApiClient {
     bool noRetry = false,
   }) async {
     if (noRetry) {
-      final res = await http.put(
-        _u(path),
-        headers: _headers(),
-        body: jsonEncode(body ?? const {}),
-      ).timeout(timeout);
+      final res = await http
+          .put(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .timeout(timeout);
       return _decode(res);
     }
-    
+
     return _retry(
-      () => http.put(
-        _u(path),
-        headers: _headers(),
-        body: jsonEncode(body ?? const {}),
-      ).then(_decode),
+      () => http
+          .put(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .then(_decode),
+    );
+  }
+
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic>? body,
+    bool noRetry = false,
+  }) async {
+    if (noRetry) {
+      final res = await http
+          .patch(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .timeout(timeout);
+      return _decode(res);
+    }
+
+    return _retry(
+      () => http
+          .patch(
+            _u(path),
+            headers: _headers(),
+            body: jsonEncode(body ?? const {}),
+          )
+          .then(_decode),
     );
   }
 
@@ -134,17 +174,22 @@ class ApiClient {
     bool noRetry = false,
   }) async {
     if (noRetry) {
-      final res = await http.delete(_u(path), headers: _headers()).timeout(timeout);
+      final res = await http
+          .delete(_u(path), headers: _headers())
+          .timeout(timeout);
       return _decode(res);
     }
-    
+
     return _retry(
       () => http.delete(_u(path), headers: _headers()).then(_decode),
     );
   }
 
   // Legacy method compatibility
-  Future<Map<String, dynamic>> putJson_legacy(String path, {Map<String, dynamic>? body}) async {
+  Future<Map<String, dynamic>> putJson_legacy(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
     final res = await http.put(
       _u(path),
       headers: _headers(),
@@ -166,11 +211,7 @@ class ApiClient {
       final msg = (data is Map && data['message'] != null)
           ? data['message'].toString()
           : 'Request failed (${res.statusCode})';
-      throw ApiException(
-        msg,
-        statusCode: res.statusCode,
-        body: data,
-      );
+      throw ApiException(msg, statusCode: res.statusCode, body: data);
     }
 
     if (data is Map<String, dynamic>) return data;
