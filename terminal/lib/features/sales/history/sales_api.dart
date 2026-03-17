@@ -11,6 +11,76 @@ import 'sales_models.dart';
 
 final salesApiProvider = Provider((ref) => SalesApi(ref));
 
+/// Provider to fetch refunds for a specific sale
+/// Auto-refreshes every 3 seconds while sale details are displayed
+final saleRefundsProvider = FutureProvider.family<List<RefundStatus>, String>((
+  ref,
+  saleId,
+) async {
+  final api = ref.read(salesApiProvider);
+  return api.getSaleRefunds(saleId);
+});
+
+/// Auto-refresh provider for sale refunds - polls every 3 seconds
+final saleRefundsAutoRefreshProvider =
+    StreamProvider.family<List<RefundStatus>, String>((ref, saleId) async* {
+  final api = ref.read(salesApiProvider);
+  
+  // Emit initial data
+  try {
+    final refunds = await api.getSaleRefunds(saleId);
+    yield refunds;
+  } catch (e) {
+    yield [];
+  }
+
+  // Keep emitting updated refunds every 3 seconds
+  while (true) {
+    await Future.delayed(const Duration(seconds: 3));
+    try {
+      final refunds = await api.getSaleRefunds(saleId);
+      yield refunds;
+    } catch (e) {
+      // Continue polling even on error
+      continue;
+    }
+  }
+});
+
+/// Provider to fetch a specific refund
+final refundProvider = FutureProvider.family<RefundStatus?, String>((
+  ref,
+  refundId,
+) async {
+  final api = ref.read(salesApiProvider);
+  return api.getRefund(refundId);
+});
+
+/// Auto-refresh provider for individual refund - polls every 2 seconds
+final refundAutoRefreshProvider = StreamProvider.family<RefundStatus?, String>((ref, refundId) async* {
+  final api = ref.read(salesApiProvider);
+  
+  // Emit initial data
+  try {
+    final refund = await api.getRefund(refundId);
+    yield refund;
+  } catch (e) {
+    yield null;
+  }
+
+  // Keep emitting updated refund every 2 seconds
+  while (true) {
+    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final refund = await api.getRefund(refundId);
+      yield refund;
+    } catch (e) {
+      // Continue polling even on error
+      continue;
+    }
+  }
+});
+
 class SalesApi {
   final Ref ref;
   late final ApiClient _client;
@@ -78,10 +148,7 @@ class SalesApi {
       );
       await _db.queueSale(queued);
 
-      ErrorLogger.logBusinessError(
-        'Sales',
-        'Queued sale offline: $tempId',
-      );
+      ErrorLogger.logBusinessError('Sales', 'Queued sale offline: $tempId');
 
       return Sale(
         id: tempId,
@@ -121,10 +188,7 @@ class SalesApi {
   }
 
   Future<Sale> createSaleRaw(Map<String, dynamic> body) async {
-    final res = await _client.postJson(
-      '/sales',
-      body: body,
-    );
+    final res = await _client.postJson('/sales', body: body);
 
     if (res['sale'] is Map<String, dynamic>) {
       return Sale.fromJson(Map<String, dynamic>.from(res['sale']));
@@ -148,7 +212,7 @@ class SalesApi {
     if (res is Map<String, dynamic>) {
       final rawItems = res['items'];
       List<Map<String, dynamic>> items = [];
-      
+
       if (rawItems is List) {
         items = (rawItems as List<dynamic>)
             .whereType<Map<String, dynamic>>()
@@ -194,5 +258,79 @@ class SalesApi {
     }
 
     throw Exception('Unexpected sale response');
+  }
+
+  /// Fetch refunds for a specific sale
+  Future<List<RefundStatus>> getSaleRefunds(String saleId) async {
+    try {
+      final res = await _client.getJson('/sales/$saleId/refunds');
+
+      if (res is Map<String, dynamic>) {
+        final refunds = res['refunds'];
+        if (refunds is List) {
+          return refunds
+              .whereType<Map<String, dynamic>>()
+              .map((e) => RefundStatus.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
+      }
+
+      return [];
+    } catch (e) {
+      ErrorLogger.logError('Failed to fetch refunds for sale $saleId: $e');
+      return [];
+    }
+  }
+
+  /// Fetch a specific refund by ID
+  Future<RefundStatus?> getRefund(String refundId) async {
+    try {
+      final res = await _client.getJson('/refunds/$refundId');
+
+      if (res is Map<String, dynamic>) {
+        final refundJson = res['refund'];
+        if (refundJson is Map<String, dynamic>) {
+          return RefundStatus.fromJson(Map<String, dynamic>.from(refundJson));
+        }
+      }
+
+      return null;
+    } catch (e) {
+      ErrorLogger.logError('Failed to fetch refund $refundId: $e');
+      return null;
+    }
+  }
+
+  /// Request a refund for a sale
+  Future<RefundStatus> requestRefund({
+    required String saleId,
+    required double amount,
+    required String reason,
+  }) async {
+    final body = {
+      'saleId': saleId,
+      'amount': amount,
+      'reason': reason,
+    };
+
+    try {
+      final res = await _client.postJson('/refunds', body: body);
+
+      if (res is Map<String, dynamic>) {
+        final refundJson = res['refund'];
+        if (refundJson is Map<String, dynamic>) {
+          return RefundStatus.fromJson(Map<String, dynamic>.from(refundJson));
+        }
+      }
+
+      throw Exception('Unexpected refund response');
+    } catch (e) {
+      ErrorLogger.logBusinessError(
+        'Sales',
+        'Failed to request refund for sale $saleId: $e',
+        details: {'amount': amount, 'reason': reason},
+      );
+      rethrow;
+    }
   }
 }

@@ -278,6 +278,12 @@ model Refund {
   createdAt      DateTime @default(now())
   shiftSessionId String?
 
+  // ✅ Approval workflow (v1)
+  approvalStatus String   @default("PENDING_APPROVAL") // PENDING_APPROVAL | APPROVED | REJECTED
+  approvedBy     String?  // userId of approver
+  approvedAt     DateTime?
+  rejectionReason String?
+
   merchant     Merchant      @relation(fields: [merchantId], references: [id])
   store        Store         @relation(fields: [storeId], references: [id])
   sale         Sale          @relation(fields: [saleId], references: [id])
@@ -286,6 +292,7 @@ model Refund {
   items RefundItem[]
 
   @@index([merchantId, storeId, shiftSessionId, createdAt])
+  @@index([merchantId, storeId, approvalStatus])
   @@index([saleId])
 }
 

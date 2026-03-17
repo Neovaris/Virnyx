@@ -158,6 +158,9 @@ export default function DashboardPage() {
   const [refundCashiers, setRefundCashiers] =
     useState<RefundCashiersReport | null>(null);
 
+  const [pendingRefundsCount, setPendingRefundsCount] = useState(0);
+  const [pendingRefundsTotal, setPendingRefundsTotal] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
@@ -174,7 +177,7 @@ export default function DashboardPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [dRes, dYRes, lRes, hRes, sRes, cRes, rcRes] = await Promise.all([
+      const [dRes, dYRes, lRes, hRes, sRes, cRes, rcRes, prRes] = await Promise.all([
         fetch(`/api/reports/daily?date=${date}`, { cache: "no-store" }),
         fetch(`/api/reports/daily?date=${yesterday}`, { cache: "no-store" }),
         fetch(`/api/reports/low-stock?threshold=10&limit=10`, {
@@ -191,6 +194,7 @@ export default function DashboardPage() {
         fetch(`/api/reports/refunds-cashiers?date=${date}`, {
           cache: "no-store",
         }),
+        fetch(`/api/refunds/pending-approvals`, { cache: "no-store" }),
       ]);
 
       setDaily(dRes.ok ? await dRes.json() : null);
@@ -204,6 +208,14 @@ export default function DashboardPage() {
       setRecentSales(sRes.ok ? await sRes.json() : null);
       setCashiers(cRes.ok ? await cRes.json() : null);
       setRefundCashiers(rcRes.ok ? await rcRes.json() : null);
+
+      // Handle pending refunds
+      if (prRes.ok) {
+        const prJson = await prRes.json().catch(() => ({}));
+        const refunds = Array.isArray(prJson?.refunds) ? prJson.refunds : [];
+        setPendingRefundsCount(refunds.length);
+        setPendingRefundsTotal(refunds.reduce((sum: number, r: any) => sum + (r.amount || 0), 0));
+      }
 
       setLastUpdatedAt(new Date().toISOString());
     } finally {
@@ -297,7 +309,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats + Comparison */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label={`Net sales (${date})`}
           value={money(netToday)}
@@ -318,6 +330,15 @@ export default function DashboardPage() {
           value={daily?.sales.completedCount ?? 0}
           helper={`Voided: ${daily?.sales.voidedCount ?? 0}`}
         />
+        <Guard perm="sales:write">
+          <Link href="/admin/refunds">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 hover:bg-amber-500/10 hover:border-amber-500/30 transition-colors cursor-pointer">
+              <div className="text-xs text-amber-600/70 font-medium mb-1">⏳ Pending Approvals</div>
+              <div className="text-2xl font-bold text-amber-400">{pendingRefundsCount}</div>
+              <div className="text-xs text-amber-600/50 mt-1">{money(pendingRefundsTotal)} total</div>
+            </div>
+          </Link>
+        </Guard>
       </div>
 
       {/* Hourly chart */}
