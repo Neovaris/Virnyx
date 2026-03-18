@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 import '../../shell/notifications/terminal_notification_models.dart';
 import '../../shell/notifications/terminal_notification_provider.dart';
-import '../../../core/api/api_client.dart';
 import '../../../core/api/api_provider.dart';
 
 /// Service that monitors refund status and triggers notifications
@@ -27,13 +25,11 @@ class RefundNotificationService {
   Future<void> _startPolling(String refundId, String saleId) async {
     final client = ref.read(apiProvider);
     String lastStatus = 'PENDING_APPROVAL';
-    int pollCount = 0;
-    const maxPolls = 0; // Unlimited - will exit when status changes
     const pollInterval = Duration(seconds: 3); // Poll every 3 seconds
 
-    while (pollCount < maxPolls || maxPolls == 0) {
+    // Loop indefinitely - stop only when refund is resolved
+    while (true) {
       await Future.delayed(pollInterval);
-      pollCount++;
 
       try {
         final response = await client.getJson('/refunds/$refundId');
@@ -70,42 +66,50 @@ class RefundNotificationService {
   /// Add notification when refund is approved
   void _addApprovedNotification(String refundId, String saleId) {
     final notificationsNotifier = ref.read(terminalNotificationsProvider.notifier);
+    final notificationCenterNotifier = ref.read(terminalNotificationCenterOpenProvider.notifier);
 
-    const uuid = Uuid();
     final notification = TerminalNotificationItem(
-      id: uuid.v4(),
-      title: '✅ Refund Approved - Sale: ${saleId.substring(0, 8)}',
+      id: refundId, // Use refund ID as notification ID for tracking
+      title: '✅ Refund Approved\nSale: ${saleId.substring(0, 8)}',
       type: TerminalNotificationType.success,
       createdAt: DateTime.now(),
-      actionLabel: 'View',
+      actionLabel: 'View Details',
     );
 
     notificationsNotifier.add(notification);
+    // Optionally open notification center to show the notification
+    notificationCenterNotifier.open();
 
-    // Auto-dismiss after 8 seconds
-    Future.delayed(const Duration(seconds: 8), () {
-      notificationsNotifier.remove(notification.id);
+    // Keep notification visible longer - 15 seconds before auto-dismiss
+    Future.delayed(const Duration(seconds: 15), () {
+      try {
+        notificationsNotifier.remove(notification.id);
+      } catch (_) {}
     });
   }
 
   /// Add notification when refund is rejected
   void _addRejectedNotification(String refundId, String saleId) {
     final notificationsNotifier = ref.read(terminalNotificationsProvider.notifier);
+    final notificationCenterNotifier = ref.read(terminalNotificationCenterOpenProvider.notifier);
 
-    const uuid = Uuid();
     final notification = TerminalNotificationItem(
-      id: uuid.v4(),
-      title: '❌ Refund Rejected - Sale: ${saleId.substring(0, 8)}',
+      id: refundId, // Use refund ID as notification ID for tracking
+      title: '❌ Refund Rejected\nSale: ${saleId.substring(0, 8)}',
       type: TerminalNotificationType.warning,
       createdAt: DateTime.now(),
-      actionLabel: 'Details',
+      actionLabel: 'View Details',
     );
 
     notificationsNotifier.add(notification);
+    // Open notification center to show the notification
+    notificationCenterNotifier.open();
 
-    // Keep rejected notifications longer (15 seconds)
+    // Keep rejected notifications visible longer (15 seconds)
     Future.delayed(const Duration(seconds: 15), () {
-      notificationsNotifier.remove(notification.id);
+      try {
+        notificationsNotifier.remove(notification.id);
+      } catch (_) {}
     });
   }
 }

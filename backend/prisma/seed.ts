@@ -124,6 +124,90 @@ async function ensureRolesForMerchant(merchantId: string) {
   }
 }
 
+async function ensureSampleProducts(merchantId: string) {
+  const sampleProducts = [
+    {
+      name: "Classic Burger",
+      sku: "BURGER-001",
+      barcode: "1234567890123",
+      price: 8.99,
+      imageUrl: "/public/products/burger.svg",
+    },
+    {
+      name: "Cheese Burger",
+      sku: "BURGER-002",
+      barcode: "1234567890124",
+      price: 9.99,
+      imageUrl: "/public/products/burger.svg",
+    },
+    {
+      name: "Ramen Noodles",
+      sku: "NOODLES-001",
+      barcode: "1234567890125",
+      price: 7.99,
+      imageUrl: "/public/products/noodles.svg",
+    },
+    {
+      name: "Pad Thai",
+      sku: "NOODLES-002",
+      barcode: "1234567890126",
+      price: 8.99,
+      imageUrl: "/public/products/noodles.svg",
+    },
+    {
+      name: "Iced Cola",
+      sku: "DRINKS-001",
+      barcode: "1234567890127",
+      price: 2.99,
+      imageUrl: "/public/products/drinks.svg",
+    },
+    {
+      name: "Orange Juice",
+      sku: "DRINKS-002",
+      barcode: "1234567890128",
+      price: 3.99,
+      imageUrl: "/public/products/drinks.svg",
+    },
+    {
+      name: "Chocolate Cake",
+      sku: "DESSERT-001",
+      barcode: "1234567890129",
+      price: 5.99,
+      imageUrl: "/public/products/dessert.svg",
+    },
+    {
+      name: "Ice Cream",
+      sku: "DESSERT-002",
+      barcode: "1234567890130",
+      price: 4.99,
+      imageUrl: "/public/products/dessert.svg",
+    },
+  ];
+
+  for (const product of sampleProducts) {
+    await prisma.product.upsert({
+      where: {
+        merchantId_sku: { merchantId, sku: product.sku },
+      },
+      update: {
+        name: product.name,
+        price: product.price,
+        imageUrl: product.imageUrl,
+      },
+      create: {
+        merchantId,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode,
+        price: product.price,
+        imageUrl: product.imageUrl,
+      },
+    });
+  }
+
+  console.log(`✅ Sample products ensured for merchant ${merchantId}`);
+}
+
 async function main() {
   // First, ensure all permissions exist
   await ensurePermissions();
@@ -133,6 +217,7 @@ async function main() {
 
   for (const m of merchants) {
     await ensureRolesForMerchant(m.id);
+    await ensureSampleProducts(m.id);
   }
 
   console.log("✅ Roles and permissions ensured for all merchants");

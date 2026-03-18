@@ -131,7 +131,13 @@ class _NotificationTile extends ConsumerWidget {
               if (item.actionLabel != null) ...[
                 const SizedBox(height: 6),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () {
+                    // Action button tapped - currently just dismiss the notification
+                    // In the future, could navigate to sale/refund details
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${item.title} - Tapped action')),
+                    );
+                  },
                   child: Text(
                     item.actionLabel!,
                     style: const TextStyle(

@@ -1,0 +1,32 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="200" fill="#f5f5f5"/>
+  
+  <!-- Cone -->
+  <polygon points="100,120 70,150 130,150" fill="#D2691E"/>
+  <polygon points="75,135 125,135 120,145 80,145" fill="#CD853F"/>
+  <line x1="85" y1="130" x2="115" y2="130" stroke="#8B4513" stroke-width="1"/>
+  <line x1="83" y1="140" x2="117" y2="140" stroke="#8B4513" stroke-width="1"/>
+  
+  <!-- Ice cream scoop 1 (bottom) -->
+  <circle cx="100" cy="115" r="28" fill="#FFB6C1"/>
+  
+  <!-- Ice cream scoop 2 (middle) -->
+  <circle cx="100" cy="85" r="26" fill="#FFB6C1"/>
+  
+  <!-- Ice cream scoop 3 (top) -->
+  <circle cx="100" cy="58" r="24" fill="#FFB6C1"/>
+  
+  <!-- Cherry on top -->
+  <circle cx="100" cy="30" r="6" fill="#DC143C"/>
+  <path d="M 100 30 Q 102 20 100 15" stroke="#228B22" stroke-width="1.5"/>
+  
+  <!-- Highlights for glossy effect -->
+  <circle cx="88" cy="50" r="5" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="92" cy="80" r="4" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="98" cy="110" r="6" fill="#FFFFFF" opacity="0.5"/>
+  
+  <!-- Drips -->
+  <path d="M 75 130 Q 73 140 75 150" stroke="#FFB6C1" stroke-width="2" fill="none" opacity="0.7"/>
+  <path d="M 125 130 Q 127 140 125 150" stroke="#FFB6C1" stroke-width="2" fill="none" opacity="0.7"/>
+</svg>

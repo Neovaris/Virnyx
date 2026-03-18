@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
+import fastifyStatic from "@fastify/static";
+import path from "path";
 import dotenv from "dotenv";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { merchantRoutes } from "./modules/merchants/merchant.routes";
@@ -22,6 +24,14 @@ export function buildApp() {
   const app = Fastify({ logger: true });
   
   app.register(cors);
+  
+  // Register static file serving BEFORE JWT middleware (no auth needed)
+  const publicDir = path.join(__dirname, '..', 'public');
+  app.register(fastifyStatic, {
+    root: publicDir,
+    prefix: '/public/',
+  });
+  
   app.register(jwt, { secret: process.env.JWT_SECRET || "supersecret"});
   
   app.get("/", async () => ({ message: "Virnyx POS Backend Running" }));

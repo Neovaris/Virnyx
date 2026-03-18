@@ -36,29 +36,8 @@ class TerminalNotificationsNotifier
     extends Notifier<List<TerminalNotificationItem>> {
   @override
   List<TerminalNotificationItem> build() {
-    return [
-      TerminalNotificationItem(
-        id: '1',
-        title: 'Software update available.',
-        type: TerminalNotificationType.info,
-        actionLabel: 'View',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      TerminalNotificationItem(
-        id: '2',
-        title: 'Offline sync completed successfully.',
-        type: TerminalNotificationType.success,
-        actionLabel: 'Details',
-        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-      TerminalNotificationItem(
-        id: '3',
-        title: 'Terminal entered offline mode.',
-        type: TerminalNotificationType.warning,
-        actionLabel: 'Check',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 45)),
-      ),
-    ];
+    // Start with empty list - notifications are added in real-time
+    return [];
   }
 
   void dismissAll() {

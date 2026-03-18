@@ -18,6 +18,28 @@ function isValidPrice(n: number) {
   return Number.isFinite(n) && n >= 0;
 }
 
+function isInvalidId(v: any) {
+  const id = asString(v);
+  return !id || id === "undefined" || id === "null";
+}
+
+function normalizeImageUrl(v: any) {
+  const raw = asString(v);
+  if (!raw) return null;
+
+  if (raw.startsWith("/")) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return raw;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function productRoutes(app: FastifyInstance) {
   // =========================
   // CREATE
@@ -34,9 +56,15 @@ export async function productRoutes(app: FastifyInstance) {
       const price = asNumber(body.price);
       const sku = body.sku !== undefined ? asString(body.sku) : "";
       const barcode = body.barcode !== undefined ? asString(body.barcode) : "";
+      const imageUrl = body.imageUrl !== undefined ? normalizeImageUrl(body.imageUrl) : null;
 
       if (!name) return reply.code(400).send({ message: "name is required" });
       if (!isValidPrice(price)) return reply.code(400).send({ message: "price must be a number >= 0" });
+      if (body.imageUrl !== undefined && !imageUrl) {
+        return reply
+          .code(400)
+          .send({ message: "imageUrl must be an absolute http(s) URL or a root-relative path" });
+      }
 
       try {
         const result = await prisma.$transaction(async (tx) => {
@@ -47,6 +75,7 @@ export async function productRoutes(app: FastifyInstance) {
               price,
               sku: sku || null,
               barcode: barcode || null,
+              imageUrl,
             },
           });
 
@@ -144,6 +173,10 @@ export async function productRoutes(app: FastifyInstance) {
       const { merchantId } = req.user as any;
       const { id } = req.params as any;
 
+      if (isInvalidId(id)) {
+        return reply.code(400).send({ message: "Invalid product id" });
+      }
+
       const product = await prisma.product.findFirst({
         where: { id, merchantId, isDeleted: false },
       });
@@ -165,6 +198,10 @@ export async function productRoutes(app: FastifyInstance) {
       const { id } = req.params as any;
       const body = req.body as any;
 
+      if (isInvalidId(id)) {
+        return reply.code(400).send({ message: "Invalid product id" });
+      }
+
       const data: any = {};
       if (body.name !== undefined) {
         const name = asString(body.name);
@@ -178,6 +215,15 @@ export async function productRoutes(app: FastifyInstance) {
       }
       if (body.sku !== undefined) data.sku = asString(body.sku) || null;
       if (body.barcode !== undefined) data.barcode = asString(body.barcode) || null;
+      if (body.imageUrl !== undefined) {
+        const imageUrl = normalizeImageUrl(body.imageUrl);
+        if (!imageUrl && asString(body.imageUrl)) {
+          return reply
+            .code(400)
+            .send({ message: "imageUrl must be an absolute http(s) URL or a root-relative path" });
+        }
+        data.imageUrl = imageUrl;
+      }
 
       if (Object.keys(data).length === 0) {
         return reply.code(400).send({ message: "No fields provided to update" });
@@ -217,6 +263,10 @@ export async function productRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const { merchantId } = req.user as any;
       const { id } = req.params as any;
+
+      if (isInvalidId(id)) {
+        return reply.code(400).send({ message: "Invalid product id" });
+      }
 
       const updated = await prisma.product.updateMany({
         where: { id, merchantId, isDeleted: false },

@@ -147,6 +147,7 @@ model Product {
   name    String
   sku     String?
   barcode String?
+  imageUrl String?
   price   Float
 
   isDeleted Boolean  @default(false)

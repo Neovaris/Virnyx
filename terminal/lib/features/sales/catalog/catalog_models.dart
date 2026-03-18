@@ -6,7 +6,8 @@ class CatalogProduct {
   final double price;
   final String sku;
   final String barcode;
-  final String category; // add this because your CategorySidebar uses p.category
+  final String category;
+  final String? imageUrl;
   final DateTime? createdAt;
 
   const CatalogProduct({
@@ -16,6 +17,7 @@ class CatalogProduct {
     required this.sku,
     required this.barcode,
     required this.category,
+    this.imageUrl,
     this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class CatalogProduct {
       sku: (j['sku'] ?? '').toString(),
       barcode: (j['barcode'] ?? '').toString(),
       category: (j['category'] ?? 'Uncategorized').toString(),
+      imageUrl: j['imageUrl']?.toString(),
       createdAt: j['createdAt'] == null
           ? null
           : DateTime.tryParse(j['createdAt'].toString()),
@@ -46,9 +49,9 @@ class CatalogState {
   });
 
   const CatalogState.initial()
-      : loading = false,
-        error = null,
-        items = const [];
+    : loading = false,
+      error = null,
+      items = const [];
 
   CatalogState copyWith({
     bool? loading,
