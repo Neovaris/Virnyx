@@ -49,6 +49,7 @@ model Merchant {
   securitySettings      SecuritySettings? @relation("SecuritySettings")
   backupSettings        BackupSettings? @relation("BackupSettings")
   receiptSettings       ReceiptSettings? @relation("ReceiptSettings")
+  receiptTemplates      ReceiptTemplate[] @relation("ReceiptTemplates")
   salesSettings         SalesSettings? @relation("SalesSettings")
   integrationSettings   IntegrationSettings? @relation("IntegrationSettings")
   discountRules         DiscountRule[] @relation("MerchantDiscountRules")
@@ -639,6 +640,8 @@ model ReceiptSettings {
   enableEmailReceipt          Boolean @default(false)
   enableSMSReceipt            Boolean @default(false)
   
+  activeTemplateId            String?
+  
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -646,6 +649,66 @@ model ReceiptSettings {
   merchant Merchant @relation("ReceiptSettings", fields: [merchantId], references: [id])
   
   @@index([merchantId])
+  @@index([activeTemplateId])
+}
+
+model ReceiptTemplate {
+  id         String @id @default(uuid())
+  merchantId String
+  name       String
+  description String?
+  isDefault  Boolean @default(false)
+  
+  // Template content (copy of fields from ReceiptSettings)
+  receiptWidth                String  @default("80MM")
+  useLogoOnReceipt            Boolean @default(true)
+  logoUrl                     String?
+  merchantName                String  @default("VIRNYX POS")
+  storeName                   String  @default("Sales Receipt")
+  
+  customHeader                String?
+  customFooter                String?
+  displayLogo                 Boolean @default(true)
+  displayMerchantName         Boolean @default(true)
+  displayStoreName            Boolean @default(true)
+  displayTaxId                Boolean @default(false)
+  displayCashierName          Boolean @default(true)
+  displayReceiptNumber        Boolean @default(true)
+  displayTimestamp            Boolean @default(true)
+  
+  showProductSKU              Boolean @default(false)
+  showProductDescription      Boolean @default(true)
+  showUnitPrice               Boolean @default(true)
+  showQuantity                Boolean @default(true)
+  showLineTotal               Boolean @default(true)
+  
+  displaySubtotal             Boolean @default(true)
+  displayTaxBreakdown         Boolean @default(true)
+  displayTotal                Boolean @default(true)
+  displayChangeDue            Boolean @default(true)
+  
+  showPaymentMethod           Boolean @default(true)
+  showPaymentReference        Boolean @default(false)
+  
+  thankYouMessage             String?
+  returnsExchangeMessage      String?
+  discountMessage             String?
+  
+  printerType                 String  @default("THERMAL")
+  printBarcode                Boolean @default(true)
+  printQRCode                 Boolean @default(false)
+  
+  enableEmailReceipt          Boolean @default(false)
+  enableSMSReceipt            Boolean @default(false)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("ReceiptTemplates", fields: [merchantId], references: [id])
+  
+  @@unique([merchantId, name])
+  @@index([merchantId])
+  @@index([isDefault])
 }
 
 model SalesSettings {

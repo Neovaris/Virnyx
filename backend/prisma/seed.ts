@@ -208,6 +208,164 @@ async function ensureSampleProducts(merchantId: string) {
   console.log(`✅ Sample products ensured for merchant ${merchantId}`);
 }
 
+async function ensureReceiptTemplates(merchantId: string) {
+  const templates = [
+    {
+      name: "Minimal",
+      description: "Clean, concise receipt with essential information only",
+      isDefault: true,
+      receiptWidth: "80MM",
+      useLogoOnReceipt: false,
+      merchantName: "VIRNYX POS",
+      storeName: "Sales Receipt",
+      displayLogo: false,
+      displayMerchantName: true,
+      displayStoreName: true,
+      displayTaxId: false,
+      displayCashierName: false,
+      displayReceiptNumber: true,
+      displayTimestamp: true,
+      showProductSKU: false,
+      showProductDescription: true,
+      showUnitPrice: true,
+      showQuantity: true,
+      showLineTotal: true,
+      displaySubtotal: true,
+      displayTaxBreakdown: false,
+      displayTotal: true,
+      displayChangeDue: true,
+      showPaymentMethod: true,
+      showPaymentReference: false,
+      thankYouMessage: "Thank you!",
+      printerType: "THERMAL",
+      printBarcode: false,
+      printQRCode: false,
+      enableEmailReceipt: false,
+      enableSMSReceipt: false,
+    },
+    {
+      name: "Standard",
+      description: "Complete receipt with all standard details",
+      isDefault: false,
+      receiptWidth: "80MM",
+      useLogoOnReceipt: true,
+      merchantName: "VIRNYX POS",
+      storeName: "Sales Receipt",
+      customHeader: "Welcome to Virnyx",
+      customFooter: "Thank you for your purchase!",
+      displayLogo: true,
+      displayMerchantName: true,
+      displayStoreName: true,
+      displayTaxId: false,
+      displayCashierName: true,
+      displayReceiptNumber: true,
+      displayTimestamp: true,
+      showProductSKU: false,
+      showProductDescription: true,
+      showUnitPrice: true,
+      showQuantity: true,
+      showLineTotal: true,
+      displaySubtotal: true,
+      displayTaxBreakdown: true,
+      displayTotal: true,
+      displayChangeDue: true,
+      showPaymentMethod: true,
+      showPaymentReference: true,
+      thankYouMessage: "Thank you for shopping with us!",
+      printerType: "THERMAL",
+      printBarcode: true,
+      printQRCode: false,
+      enableEmailReceipt: true,
+      enableSMSReceipt: false,
+    },
+    {
+      name: "Detailed",
+      description: "Comprehensive receipt with all available information",
+      isDefault: false,
+      receiptWidth: "80MM",
+      useLogoOnReceipt: true,
+      merchantName: "VIRNYX POS",
+      storeName: "Sales Receipt",
+      customHeader: "Welcome to Virnyx Mart",
+      customFooter: "Thank you for your purchase!\nVisit us again!",
+      displayLogo: true,
+      displayMerchantName: true,
+      displayStoreName: true,
+      displayTaxId: true,
+      displayCashierName: true,
+      displayReceiptNumber: true,
+      displayTimestamp: true,
+      showProductSKU: true,
+      showProductDescription: true,
+      showUnitPrice: true,
+      showQuantity: true,
+      showLineTotal: true,
+      displaySubtotal: true,
+      displayTaxBreakdown: true,
+      displayTotal: true,
+      displayChangeDue: true,
+      showPaymentMethod: true,
+      showPaymentReference: true,
+      thankYouMessage: "Thank you for your purchase!",
+      returnsExchangeMessage: "30-day returns accepted",
+      discountMessage: "Check back for special offers",
+      printerType: "THERMAL",
+      printBarcode: true,
+      printQRCode: true,
+      enableEmailReceipt: true,
+      enableSMSReceipt: true,
+    },
+    {
+      name: "Compact",
+      description: "Compact receipt for narrow 58mm printers",
+      isDefault: false,
+      receiptWidth: "58MM",
+      useLogoOnReceipt: true,
+      merchantName: "VIRNYX",
+      storeName: "Receipt",
+      displayLogo: true,
+      displayMerchantName: true,
+      displayStoreName: true,
+      displayTaxId: false,
+      displayCashierName: true,
+      displayReceiptNumber: true,
+      displayTimestamp: true,
+      showProductSKU: false,
+      showProductDescription: true,
+      showUnitPrice: true,
+      showQuantity: true,
+      showLineTotal: true,
+      displaySubtotal: true,
+      displayTaxBreakdown: false,
+      displayTotal: true,
+      displayChangeDue: true,
+      showPaymentMethod: true,
+      showPaymentReference: false,
+      thankYouMessage: "Thank you!",
+      printerType: "THERMAL",
+      printBarcode: true,
+      printQRCode: false,
+      enableEmailReceipt: false,
+      enableSMSReceipt: false,
+    },
+  ];
+
+  for (const template of templates) {
+    await prisma.receiptTemplate.upsert({
+      where: {
+        merchantId_name: { merchantId, name: template.name },
+      } as any,
+      update: template,
+      create: {
+        ...template,
+        merchantId,
+      },
+    });
+  }
+
+  console.log(`✅ Receipt templates ensured for merchant ${merchantId}`);
+}
+
 async function main() {
   // First, ensure all permissions exist
   await ensurePermissions();
@@ -218,9 +376,10 @@ async function main() {
   for (const m of merchants) {
     await ensureRolesForMerchant(m.id);
     await ensureSampleProducts(m.id);
+    await ensureReceiptTemplates(m.id);
   }
 
-  console.log("✅ Roles and permissions ensured for all merchants");
+  console.log("✅ Roles, permissions, and templates ensured for all merchants");
 }
 
 main()
