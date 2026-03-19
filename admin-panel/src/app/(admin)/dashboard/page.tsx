@@ -284,6 +284,7 @@ export default function DashboardPage() {
             value={date}
             max={todayDefault}
             onChange={(e) => setDate(e.target.value)}
+            aria-label="Select date for dashboard"
             className="rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/40"
           />
 

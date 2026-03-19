@@ -1,0 +1,36 @@
+[Unit]
+Description=Virnyx Database Backup Service
+Documentation=file:///path/to/virnyx/backend/BACKUP_GUIDE.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=virnyx
+WorkingDirectory=/path/to/virnyx/backend
+
+# Load environment from .env
+EnvironmentFile=/path/to/virnyx/backend/.env
+
+# Execute backup script
+ExecStart=/path/to/virnyx/backend/scripts/backup-database.sh backup
+
+# Run cleanup after backup
+ExecStartPost=/path/to/virnyx/backend/scripts/backup-database.sh cleanup
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/path/to/virnyx/backend/backups
+
+[Install]
+WantedBy=multi-user.target

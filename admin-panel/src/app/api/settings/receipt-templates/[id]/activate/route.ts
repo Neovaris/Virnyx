@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTokenFromCookie } from "@/lib/auth.server";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:4000";
@@ -13,12 +13,13 @@ async function readJsonSafe(res: Response) {
 }
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const token = await getTokenFromCookie();
   const res = await fetch(
-    `${BACKEND_URL}/settings/receipt/templates/${params.id}/activate`,
+    `${BACKEND_URL}/settings/receipt/templates/${resolvedParams.id}/activate`,
     {
       method: "POST",
       headers: {

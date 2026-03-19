@@ -1,0 +1,16 @@
+{
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "EmailTest",
+        "severity": "warning", 
+        "service": "monitoring"
+      },
+      "annotations": {
+        "summary": "Testing email notification after fix",
+        "description": "Using correct Zoho sender email address"
+      }
+    }
+  ]
+}

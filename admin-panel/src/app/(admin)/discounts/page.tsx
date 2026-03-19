@@ -269,7 +269,7 @@ export default function DiscountsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+              <table className="w-full text-sm">
                 <thead className="bg-[#07152f] text-xs uppercase tracking-wide text-slate-400">
                   <tr>
                     <th className="px-4 py-4 text-left font-medium">Name</th>
@@ -292,7 +292,7 @@ export default function DiscountsPage() {
                       <td className="px-4 py-4">
                         <div className="font-semibold text-white">{rule.name}</div>
                         {rule.description ? (
-                          <div className="mt-1 max-w-[250px] truncate text-xs text-slate-500">
+                          <div className="mt-1 max-w-xs truncate text-xs text-slate-500">
                             {rule.description}
                           </div>
                         ) : null}
@@ -428,6 +428,7 @@ export default function DiscountsPage() {
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                     placeholder="e.g. SUMMER20"
+                    title="Promo code"
                     className="w-full rounded-xl border border-slate-700 bg-[#041127] px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-600"
                   />
                   <p className="mt-1 text-xs text-slate-500">Leave empty if not code-based</p>
@@ -445,6 +446,7 @@ export default function DiscountsPage() {
                         type: e.target.value as "FIXED" | "PERCENTAGE" | "BOGO" | "TIERED",
                       })
                     }
+                    title="Discount type"
                     className="w-full rounded-xl border border-slate-700 bg-[#041127] px-4 py-3 text-sm text-white outline-none focus:border-blue-600"
                   >
                     <option value="FIXED">Fixed Amount (₵)</option>

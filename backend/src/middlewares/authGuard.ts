@@ -5,8 +5,8 @@ export async function authGuard(req: FastifyRequest, reply: FastifyReply) {
     // First try to verify JWT from Authorization header
     await req.jwtVerify();
   } catch (headerError) {
-    // If header auth fails, try to get token from cookies
-    const token = req.cookies.token;
+    // If header auth fails, try to get token from cookies (if cookies plugin is available)
+    const token = ((req as any).cookies?.token);
     if (!token) {
       return reply.code(401).send({ message: "Unauthorized" });
     }

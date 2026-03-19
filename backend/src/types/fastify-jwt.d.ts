@@ -6,11 +6,13 @@ declare module "@fastify/jwt" {
       sub: string;
       merchantId: string;
       storeId?: string | null;
+      roles?: string[];
     };
     user: {
       sub: string;
       merchantId: string;
       storeId?: string | null;
+      roles?: string[];
     };
   }
 }

@@ -1,0 +1,23 @@
+[Unit]
+Description=Renew Virnyx SSL Certificates Daily
+# Only run this on systems with Let's Encrypt certificates
+After=docker-compose.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/virnyx/backend
+
+# Renew certificates
+ExecStart=/usr/bin/docker-compose exec -T certbot certbot renew --quiet
+
+# Reload Nginx after renewal
+ExecStartPost=/usr/bin/docker-compose exec -T nginx nginx -s reload
+
+# Log output
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=virnyx-ssl-renew
+
+[Install]
+WantedBy=multi-user.target

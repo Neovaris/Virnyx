@@ -1,0 +1,252 @@
+groups:
+  - name: virnyx_alerts
+    interval: 15s
+    rules:
+      # ============================================
+      # Application Alerts
+      # ============================================
+      
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "Backend service is down"
+          description: "Backend service at {{ $labels.instance }} is not responding"
+          runbook_url: "https://wiki.example.com/runbook/backend-down"
+
+      - alert: BackendErrorRateHigh
+        expr: rate(http_requests_total{job="backend", status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High error rate on backend"
+          description: "Error rate is {{ $value | humanizePercentage }} over 5m"
+
+      - alert: BackendLatencyHigh
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="backend"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "Backend response time is high"
+          description: "95th percentile latency is {{ $value | humanizeDuration }}"
+
+      - alert: AdminPanelDown
+        expr: up{job="admin-panel"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          service: admin
+        annotations:
+          summary: "Admin panel is down"
+          description: "Admin panel at {{ $labels.instance }} is not responding"
+
+      # ============================================
+      # Database Alerts
+      # ============================================
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database is not responding"
+
+      - alert: PostgresConnectionsHigh
+        expr: pg_stat_activity_count{datname="virnyx"} > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High PostgreSQL connection count"
+          description: "Database has {{ $value }} active connections (threshold: 80)"
+
+      - alert: PostgresCacheHitRatieLow
+        expr: rate(pg_stat_database_blks_hit[5m]) / (rate(pg_stat_database_blks_hit[5m]) + rate(pg_stat_database_blks_read[5m])) < 0.99
+        for: 10m
+        labels:
+          severity: info
+          service: database
+        annotations:
+          summary: "Low cache hit ratio on PostgreSQL"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}"
+
+      - alert: PostgresSlowQueries
+        expr: pg_stat_statements_calls{query=~".*SELECT.*"} > 1000 and pg_stat_statements_mean_time > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow queries detected on PostgreSQL"
+          description: "Query has high execution time: {{ $value | humanizeDuration }}"
+
+      # ============================================
+      # System Resource Alerts
+      # ============================================
+
+      - alert: HighCPUUsage
+        expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Low disk space"
+          description: "Only {{ $value | humanize }}% disk space remaining on {{ $labels.instance }}"
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Disk space critical"
+          description: "Only {{ $value | humanize }}% disk space remaining on {{ $labels.instance }}"
+
+      - alert: HighDiskIOUtilization
+        expr: rate(node_disk_io_time_weighted_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High disk I/O utilization"
+          description: "Disk I/O utilization is {{ $value | humanizePercentage }}"
+
+      - alert: NetworkInterfaceDown
+        expr: node_network_up{device=~"eth.*|en.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Network interface down"
+          description: "Network interface {{ $labels.device }} is down on {{ $labels.instance }}"
+
+      # ============================================
+      # Container Alerts
+      # ============================================
+
+      - alert: ContainerCrashing
+        expr: rate(container_last_seen{name=~"virnyx_.*"}[5m]) == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: containers
+        annotations:
+          summary: "Container is crashing"
+          description: "Container {{ $labels.name }} appears to be crashing"
+
+      - alert: ContainerHighCPU
+        expr: (sum by(name) (rate(container_cpu_usage_seconds_total{name=~"virnyx_.*"}[5m])) * 100) > 50
+        for: 10m
+        labels:
+          severity: warning
+          service: containers
+        annotations:
+          summary: "Container high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value | humanize }}%"
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name=~"virnyx_.*"} / 1024 / 1024 / 1024) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: containers
+        annotations:
+          summary: "Container high memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ $value | humanize }}GB"
+
+      # ============================================
+      # Reverse Proxy Alerts
+      # ============================================
+
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: reverse-proxy
+        annotations:
+          summary: "Nginx is down"
+          description: "Nginx reverse proxy is not responding"
+
+      - alert: NginxHighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: reverse-proxy
+        annotations:
+          summary: "Nginx high error rate"
+          description: "Nginx error rate is {{ $value | humanizePercentage }}"
+
+      # ============================================
+      # Alert Manager Health
+      # ============================================
+
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: alertmanager
+        annotations:
+          summary: "AlertManager is down"
+          description: "AlertManager is not responding"
+
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus monitoring is down"
+
+      # ============================================
+      # Backup Alerts
+      # ============================================
+
+      - alert: DatabaseBackupMissing
+        expr: (time() - timestamp(last_backup_time)) / 3600 > 25
+        for: 5m
+        labels:
+          severity: warning
+          service: backup
+        annotations:
+          summary: "Database backup not found in last 24 hours"
+          description: "Last backup was {{ $value | humanizeDuration }} ago"

@@ -5,6 +5,8 @@ import { authGuard } from "../../middlewares/authGuard";
 import { tenantGuard } from "../../middlewares/tenantGuard";
 import { requirePermission } from "../../middlewares/requirePermission";
 import { emailService } from "../notifications/emailService";
+import { createValidationMiddleware } from "../../middlewares/validation";
+import { CreateRefundSchema } from "../../common/validation";
 
 type RefundBody = {
   reason?: string;
@@ -76,7 +78,14 @@ export async function refundsRoutes(app: FastifyInstance) {
   // =========================
   app.post(
     "/sales/:id/refunds",
-    { preHandler: [authGuard, tenantGuard, requirePermission("sales:write")] },
+    {
+      preHandler: [
+        authGuard,
+        tenantGuard,
+        requirePermission("sales:write"),
+        createValidationMiddleware(CreateRefundSchema),
+      ],
+    },
     async (req, reply) => {
       const { merchantId, storeId, sub: cashierId } = req.user as any;
       if (!storeId) return reply.code(400).send({ message: "User has no storeId" });

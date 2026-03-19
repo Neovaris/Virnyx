@@ -1,7 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import bcrypt from "bcrypt";
 import { prisma } from "../../db/prisma";
-import type { PrismaClient } from "@prisma/client";
 
 export async function registerMerchantHandler(
   req: FastifyRequest,
@@ -26,7 +25,7 @@ export async function registerMerchantHandler(
   const passwordHash = await bcrypt.hash(password, 12);
 
   const { merchant, user } = await prisma.$transaction(
-    async (tx: PrismaClient) => {
+    async (tx) => {
       const merchant = await tx.merchant.create({
         data: { name: merchantName },
       });
@@ -132,6 +131,7 @@ export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
       id: true,
       fullName: true,
       email: true,
+      status: true,
       merchantId: true,
       storeId: true,
       createdAt: true,

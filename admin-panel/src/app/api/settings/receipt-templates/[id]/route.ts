@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getTokenFromCookie } from "@/lib/auth.server";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:4000";
@@ -13,12 +13,13 @@ async function readJsonSafe(res: Response) {
 }
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const token = await getTokenFromCookie();
   const res = await fetch(
-    `${BACKEND_URL}/settings/receipt/templates/${params.id}`,
+    `${BACKEND_URL}/settings/receipt/templates/${resolvedParams.id}`,
     {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -30,14 +31,15 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const token = await getTokenFromCookie();
   const payload = await req.json().catch(() => ({}));
 
   const res = await fetch(
-    `${BACKEND_URL}/settings/receipt/templates/${params.id}`,
+    `${BACKEND_URL}/settings/receipt/templates/${resolvedParams.id}`,
     {
       method: "PATCH",
       headers: {
@@ -53,12 +55,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   const token = await getTokenFromCookie();
   const res = await fetch(
-    `${BACKEND_URL}/settings/receipt/templates/${params.id}`,
+    `${BACKEND_URL}/settings/receipt/templates/${resolvedParams.id}`,
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },

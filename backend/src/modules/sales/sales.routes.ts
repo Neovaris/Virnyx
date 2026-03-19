@@ -4,6 +4,8 @@ import { prisma } from "../../db/prisma";
 import { authGuard } from "../../middlewares/authGuard";
 import { tenantGuard } from "../../middlewares/tenantGuard";
 import { requirePermission } from "../../middlewares/requirePermission";
+import { createValidationMiddleware } from "../../middlewares/validation";
+import { CreateSaleSchema } from "../../common/validation";
 
 type SaleCreateBody = {
   items: Array<{ productId: string; qty: number; price?: number }>;
@@ -21,7 +23,14 @@ export async function salesRoutes(app: FastifyInstance) {
   // =========================
   app.post(
     "/sales",
-    { preHandler: [authGuard, tenantGuard, requirePermission("sales:write")] },
+    {
+      preHandler: [
+        authGuard,
+        tenantGuard,
+        requirePermission("sales:write"),
+        createValidationMiddleware(CreateSaleSchema),
+      ],
+    },
     async (req, reply) => {
       const { merchantId, storeId, sub: cashierId } = req.user as any;
       if (!storeId) return reply.code(400).send({ message: "User has no storeId" });
@@ -222,7 +231,7 @@ export async function salesRoutes(app: FastifyInstance) {
           }
 
           // Receipt number
-          const dateKey = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+          const dateKey = new Date().toISOString().slice(0, 10).split("-").join("");
           const counter = await tx.receiptCounter.upsert({
             where: { merchantId_storeId_dateKey: { merchantId, storeId, dateKey } },
             update: { lastNumber: { increment: 1 } },

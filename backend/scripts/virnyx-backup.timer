@@ -1,0 +1,24 @@
+[Unit]
+Description=Virnyx Database Backup Timer
+Documentation=file:///path/to/virnyx/backend/BACKUP_GUIDE.md
+Requires=virnyx-backup.service
+
+[Timer]
+# Run daily at 2:00 AM
+OnCalendar=daily
+OnCalendar=*-*-* 02:00:00
+
+# Run immediately on boot if missed
+Persistent=true
+
+# Run on system start too
+OnBootSec=5min
+
+# Randomize by 5 minutes to avoid thundering herd
+RandomizedDelaySec=5min
+
+# Unit to activate
+Unit=virnyx-backup.service
+
+[Install]
+WantedBy=timers.target
