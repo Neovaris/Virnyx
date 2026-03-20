@@ -211,8 +211,14 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return reply.code(401).send({ message: "Invalid credentials" });
 
-  // update last login
-  // fetch roles for this user
+  // Verify user has merchantId
+  if (!user.merchantId) {
+    return reply.code(400).send({ 
+      message: "User account is missing merchant association. Please contact support." 
+    });
+  }
+
+  // Fetch roles for this user
   const userRoles = await prisma.userRole.findMany({
     where: { userId: user.id },
     select: {
@@ -227,8 +233,8 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   const token = await reply.jwtSign({
     sub: user.id,
     merchantId: user.merchantId,
-    storeId: user.storeId,
-    roles, // 🔥 now roles are embedded inside JWT
+    storeId: user.storeId || undefined,
+    roles,
   });
 
   await prisma.user.update({

@@ -1,6 +1,10 @@
-import axios from 'axios';
+import { apiClient } from '@/lib/apiClient';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (typeof window !== 'undefined'
+    ? 'http://localhost:4000'
+    : 'http://localhost:4000');
 
 export interface Cashier {
   id: string;
@@ -54,11 +58,6 @@ export interface ShiftsListResponse {
 }
 
 class ShiftsApi {
-  private client = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-  });
-
   async getShifts(params?: {
     page?: number;
     limit?: number;
@@ -67,14 +66,14 @@ class ShiftsApi {
     to?: string;
     cashierId?: string;
   }): Promise<ShiftsListResponse> {
-    const response = await this.client.get('/sessions/admin/all', {
+    const response = await apiClient.get('/sessions/admin/all', {
       params,
     });
     return response.data;
   }
 
   async getShiftDetails(id: string): Promise<any> {
-    const response = await this.client.get(`/sessions/${id}`);
+    const response = await apiClient.get(`/sessions/${id}`);
     return response.data;
   }
 }
