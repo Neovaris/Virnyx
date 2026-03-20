@@ -81,7 +81,6 @@ temp/
 *.backup
 
 # POS system specific
-receipts/
 transactions_backup/
 local_db/
 offline_cache/
