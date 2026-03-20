@@ -42,6 +42,11 @@ export default function LoginPage() {
         return;
       }
 
+      // Store token in localStorage for API interceptors
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+      }
+
       router.replace("/");
     } catch (e: unknown) {
       const error = e as any;

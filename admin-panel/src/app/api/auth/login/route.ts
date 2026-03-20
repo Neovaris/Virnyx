@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const resp = NextResponse.json({ ok: true });
+    const resp = NextResponse.json({ ok: true, token });
     resp.cookies.set("token", token, {
       httpOnly: true,
       sameSite: "lax",

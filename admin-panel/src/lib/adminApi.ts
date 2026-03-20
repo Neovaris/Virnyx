@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+import { apiClient } from '@/lib/apiClient';
 
 export interface SalesListItem {
   id: string;
@@ -53,12 +51,9 @@ export interface InventoryMetrics {
 }
 
 class AdminApi {
-  private client = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-  });
-
-  // Sales endpoints
+  // ========================
+  // SALES
+  // ========================
   async getSales(params?: {
     page?: number;
     limit?: number;
@@ -66,57 +61,63 @@ class AdminApi {
     to?: string;
     cashierId?: string;
   }): Promise<SalesListResponse> {
-    const response = await this.client.get('/sales', { params });
+    const response = await apiClient.get('/sales', { params });
     return response.data;
   }
 
-  // Dashboard endpoints
+  // ========================
+  // DASHBOARD
+  // ========================
   async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const response = await this.client.get('/reports/dashboard');
+    const response = await apiClient.get('/reports/dashboard');
     return response.data;
   }
 
   async getInventoryMetrics(): Promise<InventoryMetrics> {
-    const response = await this.client.get('/reports/inventory');
+    const response = await apiClient.get('/reports/inventory');
     return response.data;
   }
 
-  // Refunds
+  // ========================
+  // REFUNDS
+  // ========================
   async getRefunds(params?: {
     page?: number;
     limit?: number;
     from?: string;
     to?: string;
   }): Promise<any> {
-    const response = await this.client.get('/refunds', { params });
+    const response = await apiClient.get('/refunds', { params });
     return response.data;
   }
 
   async getPendingRefunds(): Promise<any> {
-    const response = await this.client.get('/refunds/pending-approvals');
+    const response = await apiClient.get('/refunds/pending-approvals');
     return response.data;
   }
 
   async approveRefund(refundId: string): Promise<any> {
-    const response = await this.client.patch(`/refunds/${refundId}/approve`);
+    const response = await apiClient.patch(`/refunds/${refundId}/approve`);
     return response.data;
   }
 
   async rejectRefund(refundId: string, reason?: string): Promise<any> {
-    const response = await this.client.patch(`/refunds/${refundId}/reject`, {
+    const response = await apiClient.patch(`/refunds/${refundId}/reject`, {
       reason,
     });
     return response.data;
   }
 
-  // Settings
+  // ========================
+  // SETTINGS
+  // ========================
   async getStoreSettings(): Promise<any> {
-    const response = await this.client.get('/settings');
+    const response = await apiClient.get('/settings');
     return response.data;
   }
 
   async updateStoreSettings(data: any): Promise<any> {
-    const response = await this.client.patch('/settings', data);
+    const response = await apiClient.patch('/settings', data);
     return response.data;
   }
 }

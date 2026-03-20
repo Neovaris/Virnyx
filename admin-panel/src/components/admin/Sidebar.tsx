@@ -6,10 +6,18 @@ import { usePathname } from "next/navigation";
 type Props = { open: boolean; onClose: () => void };
 
 const nav = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/reports", label: "Reports" },
+  { href: "/", label: "Home" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/products", label: "Products" },
+  { href: "/inventory", label: "Inventory" },
+  { href: "/sales", label: "Sales" },
+  { href: "/discounts", label: "Discounts" },
+  { href: "/shifts", label: "Shifts" },
+  { href: "/cashiers", label: "Cashiers" },
+  { href: "/reports", label: "Reports" },
+  { href: "/refunds", label: "Refunds" },
+  { href: "/users", label: "Users" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function Sidebar({ open, onClose }: Props) {
@@ -28,7 +36,7 @@ export default function Sidebar({ open, onClose }: Props) {
 
       <aside
         className={[
-          "fixed z-50 h-dvh w-72 border-r bg-background p-4 md:sticky md:translate-x-0",
+          "fixed z-50 h-dvh w-72 border-r border-slate-700/50 bg-slate-950/95 backdrop-blur-md p-4 md:sticky md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           "transition-transform",
         ].join(" ")}
@@ -50,7 +58,9 @@ export default function Sidebar({ open, onClose }: Props) {
                 onClick={onClose}
                 className={[
                   "block rounded-xl px-3 py-2 text-sm",
-                  active ? "bg-muted font-medium" : "hover:bg-muted/70",
+                  active
+                    ? "bg-slate-800 text-white"
+                    : "hover:bg-slate-800/50 text-slate-300",
                 ].join(" ")}
               >
                 {item.label}
