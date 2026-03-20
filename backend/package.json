@@ -10,7 +10,7 @@
     "test:critical": "jest --testNamePattern='(auth|sales|refunds)'",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "prisma:seed": "prisma db seed"
   },
   "keywords": [],
