@@ -1,49 +1,122 @@
 import '../sales/history/sales_models.dart';
 import '../sales/payment/payment_method.dart';
+import '../../core/api/settings_api.dart';
 
 class ReceiptFormatter {
-  static String format(Sale s) {
+  final ReceiptSettings settings;
+
+  ReceiptFormatter({ReceiptSettings? settings})
+    : settings = settings ?? ReceiptSettings.defaultSettings();
+
+  /// Static method for backward compatibility - uses default settings
+  static String formatStatic(Sale s, {ReceiptSettings? settings}) {
+    return ReceiptFormatter(settings: settings).formatInstance(s);
+  }
+
+  /// Instance method - uses custom or default settings
+  String formatInstance(Sale s) {
     final b = StringBuffer();
 
     void line([String value = '']) => b.writeln(value);
 
     String money(double v) => 'GHS ${v.toStringAsFixed(2)}';
 
-    line('VIRNYX POS');
-    line('Sales Receipt');
-    line('--------------------------------');
+    // Custom header if provided
+    if ((settings.customHeader ?? '').isNotEmpty) {
+      line(settings.customHeader ?? '');
+      line();
+    }
 
-    line('Receipt: ${s.receiptNo ?? s.id}');
-    line('Date: ${_fmtDateTime(s.createdAt)}');
-    line('Method: ${s.method.label}');
+    // Merchant & store name (if enabled)
+    if (settings.displayMerchantName) {
+      line(settings.merchantName);
+    }
+    if (settings.displayStoreName) {
+      line(settings.storeName);
+    }
+
+    line('${'=' * (settings.receiptWidth == '80MM' ? 48 : 35)}');
+
+    // Receipt details (if enabled)
+    if (settings.displayReceiptNumber) {
+      line('Receipt: ${s.receiptNo ?? s.id}');
+    }
+    if (settings.displayTimestamp) {
+      line('Date: ${_fmtDateTime(s.createdAt)}');
+    }
+    if (settings.showPaymentMethod) {
+      line('Method: ${s.method.label}');
+    }
     if ((s.shiftId ?? '').isNotEmpty) {
       line('Shift: ${s.shiftId}');
     }
 
-    line('--------------------------------');
-    line('ITEMS');
+    line('${'=' * (settings.receiptWidth == '80MM' ? 48 : 35)}');
 
-    for (final item in s.lines) {
-      line(item.name);
-      line('  ${item.qty} x ${money(item.unitPrice)}    ${money(item.lineTotal)}');
+    if (s.lines.isNotEmpty) {
+      line('ITEMS');
+      line();
+
+      for (final item in s.lines) {
+        if (settings.showProductDescription || settings.showProductSKU) {
+          line(item.name);
+        } else {
+          line(item.name);
+        }
+
+        if (settings.showQuantity ||
+            settings.showUnitPrice ||
+            settings.showLineTotal) {
+          final qty = settings.showQuantity ? '${item.qty} x ' : '';
+          final price = settings.showUnitPrice ? money(item.unitPrice) : '';
+          final total = settings.showLineTotal ? money(item.lineTotal) : '';
+
+          final detail = [
+            if (qty.isNotEmpty) qty,
+            if (price.isNotEmpty) price,
+            if (total.isNotEmpty) total,
+          ].join('    ').trim();
+          line('  $detail');
+        }
+      }
+      line();
     }
 
-    line('--------------------------------');
-    line('Subtotal: ${money(s.subtotal)}');
-    line('Tax:      ${money(s.tax)}');
-    line('Total:    ${money(s.total)}');
+    line('${'=' * (settings.receiptWidth == '80MM' ? 48 : 35)}');
 
-    if (s.method == PaymentMethod.cash) {
-      line('Tendered: ${money(s.tendered ?? 0)}');
-      line('Change:   ${money(s.change ?? 0)}');
+    // Totals section
+    if (settings.displaySubtotal) {
+      line('Subtotal: ${money(s.subtotal)}');
+    }
+    if (settings.displayTaxBreakdown) {
+      line('Tax:      ${money(s.tax)}');
+    }
+    if (settings.displayTotal) {
+      line('Total:    ${money(s.total)}');
     }
 
-    if ((s.reference ?? '').isNotEmpty) {
+    // Payment details
+    if (s.method == PaymentMethod.cash && settings.showPaymentMethod) {
+      line();
+      if (s.tendered != null) line('Tendered: ${money(s.tendered!)}');
+      if (settings.displayChangeDue && s.change != null) {
+        line('Change:   ${money(s.change!)}');
+      }
+    }
+
+    if ((s.reference ?? '').isNotEmpty && settings.showPaymentReference) {
       line('Reference: ${s.reference}');
     }
 
-    line('--------------------------------');
-    line('Thank you for your purchase');
+    line('${'=' * (settings.receiptWidth == '80MM' ? 48 : 35)}');
+
+    // Custom footer if provided
+    if ((settings.customFooter ?? '').isNotEmpty) {
+      line();
+      line(settings.customFooter ?? '');
+    } else {
+      line('Thank you for your purchase');
+    }
 
     return b.toString();
   }

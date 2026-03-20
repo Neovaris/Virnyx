@@ -1,8 +1,10 @@
 import '../sales/history/sales_models.dart';
 import '../sales/payment/payment_method.dart';
+import '../../core/api/settings_api.dart';
 
 class ReceiptHtmlFormatter {
-  static String format(Sale s) {
+  static String format(Sale s, {ReceiptSettings? settings}) {
+    final displaySettings = settings ?? ReceiptSettings.defaultSettings();
     String esc(String v) => v
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
@@ -19,7 +21,8 @@ class ReceiptHtmlFormatter {
 
     final items = s.lines
         .map(
-          (l) => '''
+          (l) =>
+              '''
 <tr>
   <td>${esc(l.name)}</td>
   <td style="text-align:center;">${l.qty}</td>

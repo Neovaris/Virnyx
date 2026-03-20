@@ -5,6 +5,7 @@ import '../../../core/api/api_provider.dart';
 import '../../../core/session/session_store.dart';
 import '../../../core/logging/error_logger.dart';
 import '../data/auth_api.dart';
+import 'merchant_settings_provider.dart';
 
 class AuthState {
   final bool initialized;
@@ -23,13 +24,11 @@ class AuthState {
     this.role,
   });
 
-  const AuthState.loggedOut({
-    this.initialized = false,
-    this.loading = false,
-  })  : loggedIn = false,
-        token = null,
-        userId = null,
-        role = null;
+  const AuthState.loggedOut({this.initialized = false, this.loading = false})
+    : loggedIn = false,
+      token = null,
+      userId = null,
+      role = null;
 
   AuthState copyWith({
     bool? initialized,
@@ -53,8 +52,9 @@ class AuthState {
   }
 }
 
-final authProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);
 
 class AuthController extends Notifier<AuthState> {
   late final ApiClient _api;
@@ -90,9 +90,8 @@ class AuthController extends Notifier<AuthState> {
           : res.cast<String, dynamic>();
 
       final role = (user['role'] ?? 'cashier').toString();
-      final userId =
-          (user['email'] ?? user['username'] ?? user['id'] ?? 'user')
-              .toString();
+      final userId = (user['email'] ?? user['username'] ?? user['id'] ?? 'user')
+          .toString();
 
       state = AuthState(
         initialized: true,
@@ -102,6 +101,9 @@ class AuthController extends Notifier<AuthState> {
         userId: userId,
         role: role,
       );
+
+      // Load merchant settings after successful session restore
+      await ref.read(merchantSettingsProvider.notifier).loadSettings();
     } catch (_) {
       await _store.clear();
       _api.token = null;
@@ -109,10 +111,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     state = state.copyWith(loading: true);
 
     try {
@@ -134,8 +133,8 @@ class AuthController extends Notifier<AuthState> {
           : meRes.cast<String, dynamic>();
 
       final role = (user['role'] ?? 'cashier').toString();
-      final userId =
-          (user['email'] ?? user['username'] ?? user['id'] ?? email).toString();
+      final userId = (user['email'] ?? user['username'] ?? user['id'] ?? email)
+          .toString();
 
       state = AuthState(
         initialized: true,
@@ -145,6 +144,9 @@ class AuthController extends Notifier<AuthState> {
         userId: userId,
         role: role,
       );
+
+      // Load merchant settings after successful login
+      await ref.read(merchantSettingsProvider.notifier).loadSettings();
     } catch (e, st) {
       ErrorLogger.logBusinessError(
         'Login',

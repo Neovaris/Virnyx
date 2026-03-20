@@ -1,0 +1,98 @@
+global:
+  scrape_interval: 15s        # How often to scrape targets
+  evaluation_interval: 15s    # How often to evaluate alerts
+  external_labels:
+    monitor: 'virnyx-monitor'
+    environment: 'production'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alerting rules once and periodically evaluate them
+rule_files:
+  - 'alert-rules.yml'
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Backend Express API
+  - job_name: 'backend'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['backend:3000']
+        labels:
+          environment: production
+          service: api
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Admin Panel
+  - job_name: 'admin-panel'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['admin-panel:3001']
+        labels:
+          environment: production
+          service: admin
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Database
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          environment: production
+          service: database
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Node Exporter (system metrics: CPU, memory, disk, network)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          environment: production
+          service: system
+    metric_relabel_configs:
+      # Keep only important node metrics
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|network|filesystem|systemd|processes|load|uname).*'
+        action: keep
+
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          environment: production
+          service: containers
+    metric_relabel_configs:
+      # Keep container metrics
+      - source_labels: [__name__]
+        regex: 'container_(cpu|memory|network|fs).*'
+        action: keep
+
+  # Nginx (reverse proxy metrics)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          environment: production
+          service: reverse-proxy
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

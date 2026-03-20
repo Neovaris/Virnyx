@@ -15,7 +15,7 @@ export default function Topbar({ onMenu }: Props) {
         </button>
 
         <div className="flex-1 text-sm text-muted-foreground">
-          {loading ? "Loading…" : me ? `Signed in as ${me.name}` : "Admin Panel"}
+          {loading ? "Loading…" : me ? `Signed in as ${me.fullName}` : "Admin Panel"}
         </div>
 
         <button

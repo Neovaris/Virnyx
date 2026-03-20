@@ -782,7 +782,7 @@ export async function reportsRoutes(app: FastifyInstance) {
           revenue: yearTotal,
           transactions: yearTransactions,
         },
-        topCashiers: topCashiers.map((c) => ({
+        topCashiers: topCashiers.map((c: any) => ({
           id: c.id,
           name: c.name,
           sales: c.sales,

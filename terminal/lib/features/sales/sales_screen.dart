@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../app/theme/theme_controller.dart';
-import '../../core/offline/offline_detector.dart';
-import '../shift/providers/shift_controller.dart';
-import 'offline/offline_sync_service.dart';
-import '../receipt/receipt_print_service.dart';
 
 import 'cart/cart_controller.dart';
 import 'catalog/catalog_models.dart';
@@ -18,11 +11,9 @@ import 'search/scan_event.dart';
 import 'search/search_controller.dart';
 
 import 'widgets/cart_panel.dart';
-import 'widgets/category_sidebar.dart';
 import 'widgets/product_grid.dart';
 import '../shell/status/terminal_status_bar.dart';
 import '../shell/header/terminal_top_strip.dart';
-import '../shell/header/terminal_command_bar.dart';
 
 import 'parked/parked_sales_controller.dart';
 
@@ -140,7 +131,6 @@ class SalesScreen extends ConsumerWidget {
       body: Column(
         children: [
           const TerminalTopStrip(),
-          const TerminalCommandBar(),
           Expanded(
             child: isWide ? const _WideLayout() : const _CompactLayout(),
           ),
@@ -158,8 +148,6 @@ class _WideLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        SizedBox(width: 240, child: CategorySidebar()),
-        VerticalDivider(width: 1),
         Expanded(flex: 7, child: ProductGrid()),
         VerticalDivider(width: 1),
         SizedBox(width: 380, child: CartPanel()),
@@ -175,8 +163,6 @@ class _CompactLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        SizedBox(height: 64, child: CategorySidebar(compact: true)),
-        Divider(height: 1),
         Expanded(child: ProductGrid()),
         Divider(height: 1),
         SizedBox(height: 220, child: CartPanel()),

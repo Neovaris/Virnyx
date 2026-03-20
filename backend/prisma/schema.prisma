@@ -49,8 +49,10 @@ model Merchant {
   securitySettings      SecuritySettings? @relation("SecuritySettings")
   backupSettings        BackupSettings? @relation("BackupSettings")
   receiptSettings       ReceiptSettings? @relation("ReceiptSettings")
+  receiptTemplates      ReceiptTemplate[] @relation("ReceiptTemplates")
   salesSettings         SalesSettings? @relation("SalesSettings")
   integrationSettings   IntegrationSettings? @relation("IntegrationSettings")
+  discountRules         DiscountRule[] @relation("MerchantDiscountRules")
 }
 
 model Store {
@@ -146,6 +148,7 @@ model Product {
   name    String
   sku     String?
   barcode String?
+  imageUrl String?
   price   Float
 
   isDeleted Boolean  @default(false)
@@ -201,6 +204,7 @@ model Sale {
 
   subtotal Float
   discount Float @default(0)
+  discountPromoCode String? // Track which promo code was used
   tax      Float @default(0)
   total    Float
 
@@ -276,6 +280,12 @@ model Refund {
   createdAt      DateTime @default(now())
   shiftSessionId String?
 
+  // ✅ Approval workflow (v1)
+  approvalStatus String   @default("PENDING_APPROVAL") // PENDING_APPROVAL | APPROVED | REJECTED
+  approvedBy     String?  // userId of approver
+  approvedAt     DateTime?
+  rejectionReason String?
+
   merchant     Merchant      @relation(fields: [merchantId], references: [id])
   store        Store         @relation(fields: [storeId], references: [id])
   sale         Sale          @relation(fields: [saleId], references: [id])
@@ -284,6 +294,7 @@ model Refund {
   items RefundItem[]
 
   @@index([merchantId, storeId, shiftSessionId, createdAt])
+  @@index([merchantId, storeId, approvalStatus])
   @@index([saleId])
 }
 
@@ -583,6 +594,10 @@ model ReceiptSettings {
   useLogoOnReceipt            Boolean @default(true)
   logoUrl                     String?
   
+  // Merchant/Store branding
+  merchantName                String  @default("VIRNYX POS")
+  storeName                   String  @default("Sales Receipt")
+  
   // Receipt content
   customHeader                String? // Max 100 chars
   customFooter                String? // Max 300 chars
@@ -625,6 +640,8 @@ model ReceiptSettings {
   enableEmailReceipt          Boolean @default(false)
   enableSMSReceipt            Boolean @default(false)
   
+  activeTemplateId            String?
+  
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -632,6 +649,66 @@ model ReceiptSettings {
   merchant Merchant @relation("ReceiptSettings", fields: [merchantId], references: [id])
   
   @@index([merchantId])
+  @@index([activeTemplateId])
+}
+
+model ReceiptTemplate {
+  id         String @id @default(uuid())
+  merchantId String
+  name       String
+  description String?
+  isDefault  Boolean @default(false)
+  
+  // Template content (copy of fields from ReceiptSettings)
+  receiptWidth                String  @default("80MM")
+  useLogoOnReceipt            Boolean @default(true)
+  logoUrl                     String?
+  merchantName                String  @default("VIRNYX POS")
+  storeName                   String  @default("Sales Receipt")
+  
+  customHeader                String?
+  customFooter                String?
+  displayLogo                 Boolean @default(true)
+  displayMerchantName         Boolean @default(true)
+  displayStoreName            Boolean @default(true)
+  displayTaxId                Boolean @default(false)
+  displayCashierName          Boolean @default(true)
+  displayReceiptNumber        Boolean @default(true)
+  displayTimestamp            Boolean @default(true)
+  
+  showProductSKU              Boolean @default(false)
+  showProductDescription      Boolean @default(true)
+  showUnitPrice               Boolean @default(true)
+  showQuantity                Boolean @default(true)
+  showLineTotal               Boolean @default(true)
+  
+  displaySubtotal             Boolean @default(true)
+  displayTaxBreakdown         Boolean @default(true)
+  displayTotal                Boolean @default(true)
+  displayChangeDue            Boolean @default(true)
+  
+  showPaymentMethod           Boolean @default(true)
+  showPaymentReference        Boolean @default(false)
+  
+  thankYouMessage             String?
+  returnsExchangeMessage      String?
+  discountMessage             String?
+  
+  printerType                 String  @default("THERMAL")
+  printBarcode                Boolean @default(true)
+  printQRCode                 Boolean @default(false)
+  
+  enableEmailReceipt          Boolean @default(false)
+  enableSMSReceipt            Boolean @default(false)
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  merchant Merchant @relation("ReceiptTemplates", fields: [merchantId], references: [id])
+  
+  @@unique([merchantId, name])
+  @@index([merchantId])
+  @@index([isDefault])
 }
 
 model SalesSettings {
@@ -741,4 +818,49 @@ model IntegrationSettings {
   merchant Merchant @relation("IntegrationSettings", fields: [merchantId], references: [id])
   
   @@index([merchantId])
+}
+
+// Discount Rule Engine
+model DiscountRule {
+  id         String @id @default(uuid())
+  merchantId String
+  
+  // Basic info
+  name       String   // e.g., "Senior Discount", "Buy 2 Get 1", "10% Off"
+  code       String?  // Optional promo code (unique per merchant)
+  description String?
+  
+  // Rule type and conditions
+  type       String   // FIXED (₵ amount), PERCENTAGE (%), BOGO (Buy X Get Y), TIERED (qty-based)
+  value      Float    // For FIXED: amount in currency; For PERCENTAGE: percentage (e.g., 10)
+  
+  // Conditions
+  minOrderAmount   Float?   // Minimum subtotal to qualify
+  minItemQty       Int?     // Minimum quantity of specific item
+  maxDiscount      Float?   // Cap on discount amount
+  
+  // Applicability
+  applicableToAll  Boolean @default(true)
+  applicableProductIds String? // JSON array of product IDs: ["id1", "id2", ...]
+  
+  // Timing
+  startsAt DateTime?
+  endsAt   DateTime?
+  
+  // Status
+  isActive Boolean @default(true)
+  
+  // Tracking
+  maxUsesTotal     Int?     // Global usage limit
+  maxUsesPerCustomer Int?   // Per-customer limit (if tracking customer data)
+  usageCount       Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  merchant Merchant @relation("MerchantDiscountRules", fields: [merchantId], references: [id])
+  
+  @@unique([merchantId, code])
+  @@index([merchantId, isActive])
+  @@index([merchantId, code])
 }

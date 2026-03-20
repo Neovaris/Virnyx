@@ -29,6 +29,13 @@ type Refund = {
   restock: boolean;
   amount: number;
   createdAt: string;
+  approvalStatus?: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  rejectionReason?: string | null;
+  pendingDurationMinutes?: number;
+  pendingDurationHours?: number;
+  pendingDurationLabel?: string;
   items: Array<{
     id: string;
     saleItemId: string;
@@ -55,6 +62,14 @@ export default function RefundsPage() {
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Pending approvals
+  const [pendingRefunds, setPendingRefunds] = useState<Refund[]>([]);
+  const [loadingPending, setLoadingPending] = useState(true);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  const [showRejectForm, setShowRejectForm] = useState<Record<string, boolean>>({});
+
   // refund form
   const [restock, setRestock] = useState(true);
   const [reason, setReason] = useState("");
@@ -62,6 +77,79 @@ export default function RefundsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  // Load pending refunds
+  const loadPendingRefunds = async () => {
+    try {
+      const res = await fetch("/api/refunds/pending-approvals", {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setPendingRefunds(Array.isArray(body?.refunds) ? body.refunds : []);
+      }
+    } catch (e) {
+      console.error("Failed to load pending refunds:", e);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingRefunds();
+    // Refresh pending refunds every 30 seconds
+    const interval = setInterval(loadPendingRefunds, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const approveRefund = async (refundId: string) => {
+    setApprovingId(refundId);
+    try {
+      const res = await fetch(`/api/refunds/${refundId}/approve`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        setOkMsg("Refund approved successfully");
+        await loadPendingRefunds();
+      } else {
+        const body = await res.json();
+        setErr(body?.message || "Failed to approve refund");
+      }
+    } catch (e) {
+      setErr("Error approving refund");
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const rejectRefund = async (refundId: string) => {
+    setRejectingId(refundId);
+    try {
+      const res = await fetch(`/api/refunds/${refundId}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: rejectReason[refundId] || "",
+        }),
+      });
+
+      if (res.ok) {
+        setOkMsg("Refund rejected successfully");
+        setRejectReason((r) => ({ ...r, [refundId]: "" }));
+        setShowRejectForm((r) => ({ ...r, [refundId]: false }));
+        await loadPendingRefunds();
+      } else {
+        const body = await res.json();
+        setErr(body?.message || "Failed to reject refund");
+      }
+    } catch (e) {
+      setErr("Error rejecting refund");
+    } finally {
+      setRejectingId(null);
+    }
+  };
 
   const loadSale = async (id: string) => {
     setLoading(true);
@@ -175,6 +263,7 @@ export default function RefundsPage() {
       setReason("");
       setQtyMap({});
       await loadSale(saleId);
+      await loadPendingRefunds();
     } finally {
       setSubmitting(false);
     }
@@ -187,8 +276,138 @@ export default function RefundsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Refunds</h1>
-          <div className="text-sm text-slate-400">Process refunds by receipt</div>
+          <div className="text-sm text-slate-400">Manage and process refunds</div>
         </div>
+
+        {/* PENDING APPROVALS SECTION */}
+        <Guard perm="sales:write">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                ⏳ Pending Approvals
+                {pendingRefunds.length > 0 && (
+                  <span className="ml-2 inline-block rounded-full bg-red-500/20 px-3 py-1 text-sm font-medium text-red-300">
+                    {pendingRefunds.length}
+                  </span>
+                )}
+              </h2>
+            </div>
+
+            {err ? (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {err}
+              </div>
+            ) : null}
+
+            {okMsg ? (
+              <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+                {okMsg}
+              </div>
+            ) : null}
+
+            {loadingPending ? (
+              <div className="text-sm text-slate-400">Loading pending refunds...</div>
+            ) : pendingRefunds.length === 0 ? (
+              <div className="text-sm text-slate-400">No pending refunds awaiting approval.</div>
+            ) : (
+              <div className="space-y-3">
+                {pendingRefunds.map((refund) => (
+                  <div
+                    key={refund.id}
+                    className="rounded-xl border border-slate-800 bg-slate-950/30 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="text-lg font-semibold text-slate-100">
+                            {money(refund.amount)}
+                          </div>
+                          <span className="inline-block rounded-lg bg-yellow-500/20 px-2 py-1 text-xs font-medium text-yellow-300">
+                            Pending Approval
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-400">
+                          Sale: {refund.saleId.slice(0, 8)}... • {refund.restock ? "Restock" : "No restock"}
+                        </div>
+                        {refund.reason && (
+                          <div className="mt-1 text-xs text-slate-300">Reason: {refund.reason}</div>
+                        )}
+                        <div className="mt-1 text-xs text-slate-500">
+                          {new Date(refund.createdAt).toLocaleString()}
+                        </div>
+                        {refund.pendingDurationLabel && (
+                          <div className="mt-1 text-xs font-medium text-amber-400">
+                            ⏱️ Pending for: {refund.pendingDurationLabel}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {showRejectForm[refund.id] ? (
+                          <div className="flex flex-col gap-2">
+                            <input
+                              type="text"
+                              value={rejectReason[refund.id] || ""}
+                              onChange={(e) =>
+                                setRejectReason((r) => ({
+                                  ...r,
+                                  [refund.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Rejection reason..."
+                              className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500/40"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() =>
+                                  setShowRejectForm((s) => ({
+                                    ...s,
+                                    [refund.id]: false,
+                                  }))
+                                }
+                                className="flex-1 rounded-lg border border-slate-700 px-3 py-2 text-xs hover:bg-slate-800"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => rejectRefund(refund.id)}
+                                disabled={rejectingId === refund.id}
+                                className="flex-1 rounded-lg border border-red-500/30 bg-red-500/20 px-3 py-2 text-xs hover:bg-red-500/30 disabled:opacity-60"
+                              >
+                                {rejectingId === refund.id ? "Rejecting..." : "Reject"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => approveRefund(refund.id)}
+                              disabled={approvingId === refund.id}
+                              className="rounded-lg border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-xs hover:bg-emerald-500/30 disabled:opacity-60"
+                            >
+                              {approvingId === refund.id ? "Approving..." : "Approve"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                setShowRejectForm((s) => ({
+                                  ...s,
+                                  [refund.id]: true,
+                                }))
+                              }
+                              className="rounded-lg border border-red-500/30 bg-red-500/20 px-4 py-2 text-xs hover:bg-red-500/30"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Guard>
 
         {/* Lookup card */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
@@ -227,18 +446,6 @@ export default function RefundsPage() {
 
           {saleId ? (
             <div className="mt-3 text-xs text-slate-500">Sale ID: {saleId}</div>
-          ) : null}
-
-          {err ? (
-            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-              {err}
-            </div>
-          ) : null}
-
-          {okMsg ? (
-            <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
-              {okMsg}
-            </div>
           ) : null}
         </div>
 
@@ -403,7 +610,104 @@ export default function RefundsPage() {
             </div>
           )}
         </div>
+
+        {/* Global Refund History */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+          <h2 className="text-lg font-semibold mb-4">Refund History (All)</h2>
+          <RefundHistorySection />
+        </div>
       </div>
     </Guard>
+  );
+}
+
+type HistoryRefund = {
+  id: string;
+  saleId: string;
+  amount: number;
+  reason: string | null;
+  approvalStatus: string;
+  createdAt: string;
+  approvedAt: string | null;
+  pendingDurationLabel?: string;
+};
+
+function RefundHistorySection() {
+  const [refunds, setRefunds] = useState<HistoryRefund[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadRefunds = async () => {
+      try {
+        const res = await fetch(`/api/refunds?limit=20&skip=0`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const body = await res.json();
+          setRefunds(Array.isArray(body?.refunds) ? body.refunds : []);
+        } else {
+          setError("Failed to load refund history");
+        }
+      } catch (e) {
+        console.error("Error loading refunds:", e);
+        setError("Error loading refunds");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRefunds();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadRefunds, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return <div className="text-sm text-slate-400">Loading refund history...</div>;
+  }
+
+  if (error) {
+    return <div className="text-sm text-red-400">{error}</div>;
+  }
+
+  if (refunds.length === 0) {
+    return <div className="text-sm text-slate-400">No refunds yet.</div>;
+  }
+
+  return (
+    <div className="space-y-2 max-h-96 overflow-y-auto">
+      {refunds.map((r) => (
+        <div
+          key={r.id}
+          className="rounded-lg border border-slate-800 bg-slate-950/30 p-3 text-sm"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-slate-100">
+                {money(r.amount)}{" "}
+                <span
+                  className={`text-xs px-2 py-1 rounded ${
+                    r.approvalStatus === "APPROVED"
+                      ? "bg-emerald-500/20 text-emerald-300"
+                      : r.approvalStatus === "REJECTED"
+                      ? "bg-red-500/20 text-red-300"
+                      : "bg-yellow-500/20 text-yellow-300"
+                  }`}
+                >
+                  {r.approvalStatus}
+                </span>
+              </div>
+              {r.reason && (
+                <div className="text-xs text-slate-400 mt-1">Reason: {r.reason}</div>
+              )}
+            </div>
+            <div className="text-xs text-slate-500">
+              {new Date(r.createdAt).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

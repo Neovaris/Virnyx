@@ -893,6 +893,8 @@ export async function settingsRoutes(app: FastifyInstance) {
       if (body.receiptWidth !== undefined) data.receiptWidth = asString(body.receiptWidth);
       if (body.useLogoOnReceipt !== undefined) data.useLogoOnReceipt = asBool(body.useLogoOnReceipt);
       if (body.logoUrl !== undefined) data.logoUrl = asString(body.logoUrl) || null;
+      if (body.merchantName !== undefined) data.merchantName = asString(body.merchantName) || "VIRNYX POS";
+      if (body.storeName !== undefined) data.storeName = asString(body.storeName) || "Sales Receipt";
 
       if (body.customHeader !== undefined) data.customHeader = asString(body.customHeader) || null;
       if (body.customFooter !== undefined) data.customFooter = asString(body.customFooter) || null;
@@ -937,6 +939,252 @@ export async function settingsRoutes(app: FastifyInstance) {
         where: { merchantId },
         update: data,
         create: { merchantId, ...data },
+      });
+
+      return reply.send({ receipt: settings });
+    }
+  );
+
+  // =========================
+  // RECEIPT TEMPLATES
+  // GET /settings/receipt/templates
+  // POST /settings/receipt/templates
+  // GET /settings/receipt/templates/:id
+  // PATCH /settings/receipt/templates/:id
+  // DELETE /settings/receipt/templates/:id
+  // POST /settings/receipt/templates/:id/activate
+  // =========================
+  app.get(
+    "/settings/receipt/templates",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:read")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+
+      const templates = await prisma.receiptTemplate.findMany({
+        where: { merchantId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return reply.send({ templates });
+    }
+  );
+
+  app.post(
+    "/settings/receipt/templates",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:write")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const body = req.body as any;
+
+      const name = asString(body.name);
+      if (!name) return reply.code(400).send({ message: "name is required" });
+
+      // Build template data from request
+      const templateData: any = {
+        merchantId,
+        name,
+        description: asString(body.description) || null,
+        isDefault: asBool(body.isDefault),
+        receiptWidth: asString(body.receiptWidth) || "80MM",
+        useLogoOnReceipt: asBool(body.useLogoOnReceipt) ?? true,
+        logoUrl: asString(body.logoUrl) || null,
+        merchantName: asString(body.merchantName) || "VIRNYX POS",
+        storeName: asString(body.storeName) || "Sales Receipt",
+        customHeader: asString(body.customHeader) || null,
+        customFooter: asString(body.customFooter) || null,
+        displayLogo: asBool(body.displayLogo) ?? true,
+        displayMerchantName: asBool(body.displayMerchantName) ?? true,
+        displayStoreName: asBool(body.displayStoreName) ?? true,
+        displayTaxId: asBool(body.displayTaxId),
+        displayCashierName: asBool(body.displayCashierName) ?? true,
+        displayReceiptNumber: asBool(body.displayReceiptNumber) ?? true,
+        displayTimestamp: asBool(body.displayTimestamp) ?? true,
+        showProductSKU: asBool(body.showProductSKU),
+        showProductDescription: asBool(body.showProductDescription) ?? true,
+        showUnitPrice: asBool(body.showUnitPrice) ?? true,
+        showQuantity: asBool(body.showQuantity) ?? true,
+        showLineTotal: asBool(body.showLineTotal) ?? true,
+        displaySubtotal: asBool(body.displaySubtotal) ?? true,
+        displayTaxBreakdown: asBool(body.displayTaxBreakdown) ?? true,
+        displayTotal: asBool(body.displayTotal) ?? true,
+        displayChangeDue: asBool(body.displayChangeDue) ?? true,
+        showPaymentMethod: asBool(body.showPaymentMethod) ?? true,
+        showPaymentReference: asBool(body.showPaymentReference),
+        thankYouMessage: asString(body.thankYouMessage) || null,
+        returnsExchangeMessage: asString(body.returnsExchangeMessage) || null,
+        discountMessage: asString(body.discountMessage) || null,
+        printerType: asString(body.printerType) || "THERMAL",
+        printBarcode: asBool(body.printBarcode) ?? true,
+        printQRCode: asBool(body.printQRCode),
+        enableEmailReceipt: asBool(body.enableEmailReceipt),
+        enableSMSReceipt: asBool(body.enableSMSReceipt),
+      };
+
+      // If this is set as default, unset other defaults
+      if (templateData.isDefault) {
+        await prisma.receiptTemplate.updateMany({
+          where: { merchantId, id: { not: "" } },
+          data: { isDefault: false },
+        });
+      }
+
+      const template = await prisma.receiptTemplate.create({
+        data: templateData,
+      });
+
+      return reply.send({ template });
+    }
+  );
+
+  app.get(
+    "/settings/receipt/templates/:id",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:read")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const { id } = req.params as any;
+
+      const template = await prisma.receiptTemplate.findFirst({
+        where: { id, merchantId },
+      });
+
+      if (!template) {
+        return reply.code(404).send({ message: "Template not found" });
+      }
+
+      return reply.send({ template });
+    }
+  );
+
+  app.patch(
+    "/settings/receipt/templates/:id",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:write")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const { id } = req.params as any;
+      const body = req.body as any;
+
+      const existing = await prisma.receiptTemplate.findFirst({
+        where: { id, merchantId },
+      });
+
+      if (!existing) {
+        return reply.code(404).send({ message: "Template not found" });
+      }
+
+      const data: any = {};
+
+      if (body.name !== undefined) {
+        const name = asString(body.name);
+        if (!name) return reply.code(400).send({ message: "name cannot be empty" });
+        data.name = name;
+      }
+
+      // Copy all updatable fields
+      if (body.description !== undefined) data.description = asString(body.description) || null;
+      if (body.isDefault !== undefined) data.isDefault = asBool(body.isDefault);
+      if (body.receiptWidth !== undefined) data.receiptWidth = asString(body.receiptWidth);
+      if (body.useLogoOnReceipt !== undefined) data.useLogoOnReceipt = asBool(body.useLogoOnReceipt);
+      if (body.logoUrl !== undefined) data.logoUrl = asString(body.logoUrl) || null;
+      if (body.merchantName !== undefined) data.merchantName = asString(body.merchantName) || "VIRNYX POS";
+      if (body.storeName !== undefined) data.storeName = asString(body.storeName) || "Sales Receipt";
+      if (body.customHeader !== undefined) data.customHeader = asString(body.customHeader) || null;
+      if (body.customFooter !== undefined) data.customFooter = asString(body.customFooter) || null;
+      if (body.displayLogo !== undefined) data.displayLogo = asBool(body.displayLogo);
+      if (body.displayMerchantName !== undefined) data.displayMerchantName = asBool(body.displayMerchantName);
+      if (body.displayStoreName !== undefined) data.displayStoreName = asBool(body.displayStoreName);
+      if (body.displayTaxId !== undefined) data.displayTaxId = asBool(body.displayTaxId);
+      if (body.displayCashierName !== undefined) data.displayCashierName = asBool(body.displayCashierName);
+      if (body.displayReceiptNumber !== undefined) data.displayReceiptNumber = asBool(body.displayReceiptNumber);
+      if (body.displayTimestamp !== undefined) data.displayTimestamp = asBool(body.displayTimestamp);
+      if (body.showProductSKU !== undefined) data.showProductSKU = asBool(body.showProductSKU);
+      if (body.showProductDescription !== undefined) data.showProductDescription = asBool(body.showProductDescription);
+      if (body.showUnitPrice !== undefined) data.showUnitPrice = asBool(body.showUnitPrice);
+      if (body.showQuantity !== undefined) data.showQuantity = asBool(body.showQuantity);
+      if (body.showLineTotal !== undefined) data.showLineTotal = asBool(body.showLineTotal);
+      if (body.displaySubtotal !== undefined) data.displaySubtotal = asBool(body.displaySubtotal);
+      if (body.displayTaxBreakdown !== undefined) data.displayTaxBreakdown = asBool(body.displayTaxBreakdown);
+      if (body.displayTotal !== undefined) data.displayTotal = asBool(body.displayTotal);
+      if (body.displayChangeDue !== undefined) data.displayChangeDue = asBool(body.displayChangeDue);
+      if (body.showPaymentMethod !== undefined) data.showPaymentMethod = asBool(body.showPaymentMethod);
+      if (body.showPaymentReference !== undefined) data.showPaymentReference = asBool(body.showPaymentReference);
+      if (body.thankYouMessage !== undefined) data.thankYouMessage = asString(body.thankYouMessage) || null;
+      if (body.returnsExchangeMessage !== undefined) data.returnsExchangeMessage = asString(body.returnsExchangeMessage) || null;
+      if (body.discountMessage !== undefined) data.discountMessage = asString(body.discountMessage) || null;
+      if (body.printerType !== undefined) data.printerType = asString(body.printerType);
+      if (body.printBarcode !== undefined) data.printBarcode = asBool(body.printBarcode);
+      if (body.printQRCode !== undefined) data.printQRCode = asBool(body.printQRCode);
+      if (body.enableEmailReceipt !== undefined) data.enableEmailReceipt = asBool(body.enableEmailReceipt);
+      if (body.enableSMSReceipt !== undefined) data.enableSMSReceipt = asBool(body.enableSMSReceipt);
+
+      // If setting as default, unset others
+      if (data.isDefault === true) {
+        await prisma.receiptTemplate.updateMany({
+          where: { merchantId, id: { not: id } },
+          data: { isDefault: false },
+        });
+      }
+
+      const template = await prisma.receiptTemplate.update({
+        where: { id },
+        data,
+      });
+
+      return reply.send({ template });
+    }
+  );
+
+  app.delete(
+    "/settings/receipt/templates/:id",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:write")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const { id } = req.params as any;
+
+      const template = await prisma.receiptTemplate.findFirst({
+        where: { id, merchantId },
+      });
+
+      if (!template) {
+        return reply.code(404).send({ message: "Template not found" });
+      }
+
+      // Prevent deletion if it's the active template
+      const settings = await prisma.receiptSettings.findUnique({
+        where: { merchantId },
+      });
+
+      if (settings?.activeTemplateId === id) {
+        return reply.code(400).send({ message: "Cannot delete the active template" });
+      }
+
+      await prisma.receiptTemplate.delete({
+        where: { id },
+      });
+
+      return reply.send({ message: "Template deleted" });
+    }
+  );
+
+  app.post(
+    "/settings/receipt/templates/:id/activate",
+    { preHandler: [authGuard, tenantGuard, requirePermission("settings:write")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const { id } = req.params as any;
+
+      const template = await prisma.receiptTemplate.findFirst({
+        where: { id, merchantId },
+      });
+
+      if (!template) {
+        return reply.code(404).send({ message: "Template not found" });
+      }
+
+      // Update settings to use this template
+      const settings = await prisma.receiptSettings.upsert({
+        where: { merchantId },
+        update: { activeTemplateId: id },
+        create: { merchantId, activeTemplateId: id },
       });
 
       return reply.send({ receipt: settings });

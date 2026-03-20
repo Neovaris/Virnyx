@@ -1,18 +1,19 @@
 "use client";
 
-import { useAuth } from "@/components/admin/AuthProvider";
-
-export default function Guard({
-  perm,
-  children,
-  fallback = null,
+export default function StatCard({
+  label,
+  value,
+  helper,
 }: {
-  perm: string;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  label: string;
+  value: string | number;
+  helper?: string;
 }) {
-  const { loading, can } = useAuth();
-  if (loading) return null;
-  if (!can(perm)) return fallback;
-  return <>{children}</>;
+  return (
+    <div className="rounded-2xl border border-slate-700/50 bg-slate-900/50 p-4 hover:border-slate-600/50 transition-colors">
+      <div className="text-xs text-slate-400 font-medium mb-1">{label}</div>
+      <div className="text-2xl font-bold text-slate-100">{value}</div>
+      {helper && <div className="text-xs text-slate-500 mt-1">{helper}</div>}
+    </div>
+  );
 }

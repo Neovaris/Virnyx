@@ -92,6 +92,23 @@ class AdminApi {
     return response.data;
   }
 
+  async getPendingRefunds(): Promise<any> {
+    const response = await this.client.get('/refunds/pending-approvals');
+    return response.data;
+  }
+
+  async approveRefund(refundId: string): Promise<any> {
+    const response = await this.client.patch(`/refunds/${refundId}/approve`);
+    return response.data;
+  }
+
+  async rejectRefund(refundId: string, reason?: string): Promise<any> {
+    const response = await this.client.patch(`/refunds/${refundId}/reject`, {
+      reason,
+    });
+    return response.data;
+  }
+
   // Settings
   async getStoreSettings(): Promise<any> {
     const response = await this.client.get('/settings');

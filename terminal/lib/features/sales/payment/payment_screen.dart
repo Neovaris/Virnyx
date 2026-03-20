@@ -566,50 +566,52 @@ class _CashPanel extends StatelessWidget {
         : '₵ 0.00';
     final dueText = change < 0 ? '₵ ${(-change).toStringAsFixed(2)}' : '₵ 0.00';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Cash Payment',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: tenderCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (_) => onChanged(),
-          decoration: const InputDecoration(
-            labelText: 'Tendered amount',
-            prefixText: '₵ ',
-            border: OutlineInputBorder(),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Cash Payment',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _kv('Change', changeText, bold: true)),
-            const SizedBox(width: 10),
-            Expanded(child: _kv('Due', dueText)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _quickAmt('10', tenderCtrl, onChanged: onChanged),
-            _quickAmt('20', tenderCtrl, onChanged: onChanged),
-            _quickAmt('50', tenderCtrl, onChanged: onChanged),
-            _quickAmt('100', tenderCtrl, onChanged: onChanged),
-            _quickAmt(
-              total.toStringAsFixed(0),
-              tenderCtrl,
-              label: 'Exact',
-              onChanged: onChanged,
+          const SizedBox(height: 12),
+          TextField(
+            controller: tenderCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => onChanged(),
+            decoration: const InputDecoration(
+              labelText: 'Tendered amount',
+              prefixText: '₵ ',
+              border: OutlineInputBorder(),
             ),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _kv('Change', changeText, bold: true)),
+              const SizedBox(width: 10),
+              Expanded(child: _kv('Due', dueText)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _quickAmt('10', tenderCtrl, onChanged: onChanged),
+              _quickAmt('20', tenderCtrl, onChanged: onChanged),
+              _quickAmt('50', tenderCtrl, onChanged: onChanged),
+              _quickAmt('100', tenderCtrl, onChanged: onChanged),
+              _quickAmt(
+                total.toStringAsFixed(0),
+                tenderCtrl,
+                label: 'Exact',
+                onChanged: onChanged,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

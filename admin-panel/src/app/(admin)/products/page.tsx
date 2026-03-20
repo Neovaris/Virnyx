@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Guard from "@/components/admin/Guard";
 
 type Product = {
@@ -9,6 +9,7 @@ type Product = {
   price: number;
   sku: string | null;
   barcode: string | null;
+  imageUrl: string | null;
   createdAt: string;
 };
 
@@ -39,9 +40,17 @@ export default function ProductsPage() {
   // modal state
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState({ name: "", price: "", sku: "", barcode: "" });
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    sku: "",
+    barcode: "",
+    imageUrl: "",
+  });
   const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setQDebounced(q.trim()), 250);
@@ -76,7 +85,7 @@ export default function ProductsPage() {
   const openCreate = () => {
     setErr(null);
     setEditing(null);
-    setForm({ name: "", price: "", sku: "", barcode: "" });
+    setForm({ name: "", price: "", sku: "", barcode: "", imageUrl: "" });
     setOpen(true);
   };
 
@@ -88,17 +97,46 @@ export default function ProductsPage() {
       price: String(p.price ?? 0),
       sku: p.sku ?? "",
       barcode: p.barcode ?? "",
+      imageUrl: p.imageUrl ?? "",
     });
     setOpen(true);
   };
 
   const closeModal = () => {
-    if (saving) return;
+    if (saving || imageUploading) return;
     setOpen(false);
+  };
+
+  const uploadProductImage = async (file: File) => {
+    setErr(null);
+    setImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload/product-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.url) {
+        setErr(body?.message || "Failed to upload image");
+        return;
+      }
+
+      setForm((f) => ({ ...f, imageUrl: body.url }));
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const submit = async () => {
     setErr(null);
+
+    if (imageUploading) {
+      return setErr("Please wait for image upload to complete");
+    }
 
     const name = form.name.trim();
     const priceNum = Number(form.price);
@@ -111,6 +149,7 @@ export default function ProductsPage() {
       price: priceNum,
       sku: form.sku.trim() || undefined,
       barcode: form.barcode.trim() || undefined,
+      imageUrl: form.imageUrl.trim() || undefined,
     };
 
     setSaving(true);
@@ -197,6 +236,7 @@ export default function ProductsPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-900/60">
                 <tr>
+                  <Th label="Image" />
                   <Th label="Name" onClick={() => toggleSort("name")} active={sort === "name"} dir={order} />
                   <Th label="SKU" />
                   <Th label="Barcode" />
@@ -211,19 +251,31 @@ export default function ProductsPage() {
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={6}>
+                    <td className="px-4 py-6 text-slate-400" colSpan={7}>
                       Loading products...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={6}>
+                    <td className="px-4 py-6 text-slate-400" colSpan={7}>
                       No products found.
                     </td>
                   </tr>
                 ) : (
                   items.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-900/30">
+                      <td className="px-4 py-3 text-slate-300">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            className="h-9 w-9 rounded-md border border-slate-700 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="h-9 w-9 rounded-md border border-slate-800 bg-slate-900/50" />
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-slate-100 font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-slate-300">{p.sku ?? "-"}</td>
                       <td className="px-4 py-3 text-slate-300">{p.barcode ?? "-"}</td>
@@ -296,7 +348,7 @@ export default function ProductsPage() {
                     {editing ? "Edit Product" : "New Product"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Fields: name, price, sku, barcode
+                    Fields: name, price, sku, barcode, image
                   </p>
                 </div>
 
@@ -311,6 +363,7 @@ export default function ProductsPage() {
               <div className="mt-4 space-y-3">
                 <Field label="Name">
                   <input
+                    aria-label="Product name"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
@@ -320,6 +373,7 @@ export default function ProductsPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Price (GHS)">
                     <input
+                      aria-label="Product price"
                       value={form.price}
                       onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
                       inputMode="decimal"
@@ -329,6 +383,7 @@ export default function ProductsPage() {
 
                   <Field label="SKU (optional)">
                     <input
+                      aria-label="Product SKU"
                       value={form.sku}
                       onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
                       className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
@@ -338,10 +393,70 @@ export default function ProductsPage() {
 
                 <Field label="Barcode (optional)">
                   <input
+                    aria-label="Product barcode"
                     value={form.barcode}
                     onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
                     className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
+                </Field>
+
+                <Field label="Product image (optional)">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        aria-label="Upload product image"
+                        title="Upload product image"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0];
+                          if (!file) return;
+                          if (file.size > 5 * 1024 * 1024) {
+                            setErr("File must be smaller than 5MB");
+                            e.currentTarget.value = "";
+                            return;
+                          }
+                          void uploadProductImage(file);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={imageUploading}
+                        className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900/80 disabled:opacity-60"
+                      >
+                        {imageUploading ? "Uploading..." : "Choose Image"}
+                      </button>
+
+                      {form.imageUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                          className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-200 hover:bg-red-500/20"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {form.imageUrl ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                        <img
+                          src={form.imageUrl}
+                          alt="Product preview"
+                          className="h-14 w-14 rounded-lg object-cover bg-slate-950/50"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-slate-400">Current image</p>
+                          <p className="truncate text-xs text-slate-500">{form.imageUrl}</p>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </Field>
 
                 {err ? (
@@ -360,7 +475,7 @@ export default function ProductsPage() {
 
                   <Guard perm="products:write">
                     <button
-                      disabled={saving}
+                      disabled={saving || imageUploading}
                       onClick={submit}
                       className="rounded-xl border border-indigo-500/30 bg-indigo-500/20 px-4 py-2 text-sm hover:bg-indigo-500/30 disabled:opacity-60"
                     >

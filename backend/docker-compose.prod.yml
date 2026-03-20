@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: virnyx_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/certbot:/var/www/certbot:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - admin-panel
+    networks:
+      - virnyx_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.virnyx.component=reverse-proxy"
+
+  # Certbot for SSL Certificate Management
+  certbot:
+    image: certbot/certbot
+    container_name: virnyx_certbot
+    volumes:
+      - ./nginx/certbot:/var/www/certbot
+      - ./nginx/ssl:/etc/letsencrypt
+      - ./certbot-renewal.sh:/etc/periodic/daily/certbot-renewal:ro
+    environment:
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL:-admin@example.com}
+    networks:
+      - virnyx_network
+    # Run certbot renewal daily
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;"
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # PostgreSQL Database (with backup convenience)
+  postgres:
+    image: postgres:16-alpine
+    container_name: virnyx_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-virnyx}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-virnyxpass}
+      POSTGRES_DB: ${DB_NAME:-virnyx}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups:rw
+    networks:
+      - virnyx_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-virnyx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "com.virnyx.component=database"
+
+  # Backend Express Server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: virnyx_backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-virnyx}:${DB_PASSWORD:-virnyxpass}@postgres:5432/${DB_NAME:-virnyx}
+      JWT_SECRET: ${JWT_SECRET}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs:rw
+    networks:
+      - virnyx_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "com.virnyx.component=backend"
+
+  # Admin Panel Next.js Server
+  admin-panel:
+    build:
+      context: ../admin-panel
+      dockerfile: Dockerfile
+    container_name: virnyx_admin
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://virnyx.local/api}
+    depends_on:
+      - backend
+    networks:
+      - virnyx_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.virnyx.component=admin-panel"
+
+networks:
+  virnyx_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  nginx_logs:
+    driver: local
