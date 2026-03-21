@@ -35,9 +35,9 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           message:
-              data && typeof data === "object" && "message" in data
-                ? String(data.message)
-                : "Login failed",
+            data && typeof data === "object" && "message" in data
+              ? String(data.message)
+              : "Login failed",
         },
         { status: res.status },
       );
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     const resp = NextResponse.json({ ok: true, token });
     resp.cookies.set("token", token, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
