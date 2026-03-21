@@ -59,7 +59,8 @@ export default function LoginPage() {
         localStorage.setItem("token", data.token);
       }
 
-      router.replace("/");
+      // 🔥 force full reload so cookie is available to middleware
+      window.location.href = "/";
     } catch (e: unknown) {
       const error = e as any;
       setErr(error?.message ?? "Login failed");

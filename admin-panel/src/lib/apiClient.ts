@@ -11,10 +11,11 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
 
-    if (token) {
+    // only attach if not already using cookies
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
