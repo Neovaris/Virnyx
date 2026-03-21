@@ -56,13 +56,21 @@ export async function POST(req: Request) {
     }
 
     const resp = NextResponse.json({ ok: true, token });
-    resp.cookies.set("token", token, {
+    const cookieConfig = {
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: (process.env.NODE_ENV === "production" ? "none" : "lax") as const,
       secure: process.env.NODE_ENV === "production",
-      path: "/",
+      path: "/" as const,
       maxAge: 60 * 60 * 24 * 7,
+    };
+    
+    console.log("[Login] Setting token cookie with config:", {
+      ...cookieConfig,
+      token: `${token.substring(0, 20)}...`,
+      NODE_ENV: process.env.NODE_ENV,
     });
+    
+    resp.cookies.set("token", token, cookieConfig);
 
     return resp;
   } catch {
