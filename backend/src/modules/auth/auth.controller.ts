@@ -157,11 +157,6 @@ export async function registerMerchantHandler(
 
   // Create roles for merchant (BEFORE user transaction)
   const roles = await createRolesForMerchant(merchant.id);
-  
-  console.log("[Registration] Created roles:", {
-    merchantId: merchant.id,
-    roles: Object.keys(roles).map((k) => ({ name: k, id: roles[k].id })),
-  });
 
   // Create store and user in a transaction
   const { user } = await prisma.$transaction(
@@ -184,22 +179,11 @@ export async function registerMerchantHandler(
       });
 
       // Assign user to ADMIN role
-      const adminRole = roles.ADMIN;
-      if (!adminRole || !adminRole.id) {
-        throw new Error(`Failed to get ADMIN role for merchant ${merchant.id}`);
-      }
-
-      const userRole = await tx.userRole.create({
+      await tx.userRole.create({
         data: {
           userId: user.id,
-          roleId: adminRole.id,
+          roleId: roles.ADMIN.id,
         },
-      });
-      
-      console.log("[Registration] Assigned user to ADMIN role:", {
-        userId: user.id,
-        roleId: adminRole.id,
-        userRoleId: userRole.id,
       });
 
       return { user };
@@ -245,25 +229,11 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   });
 
   const roles = userRoles.map((ur) => ur.role.name);
-  
-  console.log("[Login] User authenticated:", {
-    userId: user.id,
-    email: user.email,
-    merchantId: user.merchantId,
-    roles,
-    userRolesCount: userRoles.length,
-  });
 
   const token = await reply.jwtSign({
     sub: user.id,
     merchantId: user.merchantId,
     storeId: user.storeId || undefined,
-    roles,
-  });
-
-  console.log("[Login] JWT signed:", {
-    userId: user.id,
-    tokenLength: token.length,
     roles,
   });
 
