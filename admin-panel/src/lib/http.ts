@@ -3,7 +3,7 @@ import "server-only";
 
 type FetchOptions = RequestInit & { next?: { revalidate?: number } };
 
-const API_BASE = process.env.API_BASE_URL!; // e.g. http://localhost:4000
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!; // e.g. http://localhost:4000
 
 export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

@@ -1,11 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
-  (typeof window !== 'undefined'
-    ? 'http://localhost:4000'
-    : 'http://localhost:4000');
-
 export interface Cashier {
   id: string;
   fullName: string;
