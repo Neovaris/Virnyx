@@ -4,7 +4,7 @@ class ApiConfig {
 
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: _defaultLocal,
+    defaultValue: _defaultProd,
   );
 
   static const String productionUrl = _defaultProd;
