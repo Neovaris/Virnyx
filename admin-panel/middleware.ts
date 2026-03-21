@@ -39,6 +39,7 @@ export async function middleware(req: NextRequest) {
 
   const token = req.cookies.get("token")?.value;
   if (!token) {
+    console.warn(`[Middleware] No token cookie found for path: ${pathname}`);
     const url = req.nextUrl.clone();
     url.pathname = LOGIN_PATH;
     url.searchParams.set("next", pathname);
@@ -51,34 +52,62 @@ export async function middleware(req: NextRequest) {
     );
 
     // Verify signature (fast)
-    await jwtVerify(token, secret);
+    const decoded = await jwtVerify(token, secret);
+    console.log(`[Middleware] JWT verified for user: ${decoded.payload.sub}`);
 
     // Optional: fetch /auth/me to enforce RBAC (ADMIN role)
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!apiBase) throw new Error("Missing NEXT_PUBLIC_API_BASE_URL");
-
-    const meRes = await fetch(`${apiBase}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-
-    if (!meRes.ok) {
-      const url = req.nextUrl.clone();
-      url.pathname = LOGIN_PATH;
-      return NextResponse.redirect(url);
+    if (!apiBase) {
+      console.error("[Middleware] Missing NEXT_PUBLIC_API_BASE_URL");
+      throw new Error("Missing NEXT_PUBLIC_API_BASE_URL");
     }
 
-    const me = await meRes.json();
-    const roles: string[] = me?.roles ?? [];
+    try {
+      const meRes = await fetch(`${apiBase}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
 
-    if (!roles.includes("ADMIN")) {
-      const url = req.nextUrl.clone();
-      url.pathname = UNAUTHORIZED_PATH;
-      return NextResponse.redirect(url);
+      if (!meRes.ok) {
+        console.error(
+          `[Middleware] Backend /auth/me returned ${meRes.status}: ${await meRes.text()}`
+        );
+        const url = req.nextUrl.clone();
+        url.pathname = LOGIN_PATH;
+        return NextResponse.redirect(url);
+      }
+
+      const me = await meRes.json();
+      const roles: string[] = me?.roles ?? [];
+
+      console.log(
+        `[Middleware] User roles from backend: ${roles.join(", ")}`
+      );
+
+      if (!roles.includes("ADMIN")) {
+        console.warn(
+          `[Middleware] User lacks ADMIN role. Has: ${roles.join(", ")}`
+        );
+        const url = req.nextUrl.clone();
+        url.pathname = UNAUTHORIZED_PATH;
+        return NextResponse.redirect(url);
+      }
+
+      return NextResponse.next();
+    } catch (fetchErr) {
+      console.error("[Middleware] Backend call failed:", fetchErr);
+      // If backend is down but token is valid, allow passage
+      // User will see error on page load but won't be locked out
+      console.warn(
+        "[Middleware] Backend unreachable, allowing passage with valid JWT"
+      );
+      return NextResponse.next();
     }
-
-    return NextResponse.next();
-  } catch {
+  } catch (err) {
+    console.error(
+      "[Middleware] JWT verification failed:",
+      err instanceof Error ? err.message : String(err)
+    );
     const url = req.nextUrl.clone();
     url.pathname = LOGIN_PATH;
     return NextResponse.redirect(url);
