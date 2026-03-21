@@ -55,7 +55,7 @@ export async function buildApp() {
   app.register(cors, {
     origin: [
       "http://localhost:3000", // dev
-      "https://virnyx.onrender.com", // production
+      "https://virnyx.vercel.app", // production
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
