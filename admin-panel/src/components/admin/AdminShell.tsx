@@ -94,8 +94,9 @@ export default function AdminShell({
           </button>
         </aside>
 
+
         {/* ✅ MAIN CONTENT */}
-        <main className="flex-1 flex flex-col lg:ml-64">
+        <main className="flex-1 flex flex-col lg:ml-64 min-h-dvh">
 
           {/* HEADER */}
           <div className="border-b border-slate-700/50 px-4 py-4 flex justify-between items-center bg-slate-900/50">
@@ -125,7 +126,7 @@ export default function AdminShell({
           </div>
 
           {/* PAGE CONTENT */}
-          <div className="flex-1 p-6 overflow-y-auto h-screen">
+          <div className="flex-1 p-6 overflow-y-auto">
             {children}
           </div>
         </main>

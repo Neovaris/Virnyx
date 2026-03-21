@@ -36,7 +36,7 @@ export default function Sidebar({ open, onClose }: Props) {
 
       <aside
         className={[
-          "fixed z-50 h-dvh w-72 border-r border-slate-700/50 bg-slate-950/95 backdrop-blur-md p-4 md:sticky md:translate-x-0",
+          "fixed z-50 h-dvh w-72 border-r border-slate-700/50 bg-slate-950/95 backdrop-blur-md p-4 md:hidden md:sticky md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           "transition-transform",
         ].join(" ")}
