@@ -19,7 +19,9 @@ const LOGIN_PATH = "/login";
 const UNAUTHORIZED_PATH = "/unauthorized";
 
 function isAdminPath(pathname: string) {
-  return ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  return ADMIN_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
 }
 
 export async function middleware(req: NextRequest) {
@@ -64,13 +66,16 @@ export async function middleware(req: NextRequest) {
 
     try {
       const meRes = await fetch(`${apiBase}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          cookies: `token=${token}`,
+        },
         cache: "no-store",
       });
 
       if (!meRes.ok) {
         console.error(
-          `[Middleware] Backend /auth/me returned ${meRes.status}: ${await meRes.text()}`
+          `[Middleware] Backend /auth/me returned ${meRes.status}: ${await meRes.text()}`,
         );
         const url = req.nextUrl.clone();
         url.pathname = LOGIN_PATH;
@@ -80,13 +85,11 @@ export async function middleware(req: NextRequest) {
       const me = await meRes.json();
       const roles: string[] = me?.roles ?? [];
 
-      console.log(
-        `[Middleware] User roles from backend: ${roles.join(", ")}`
-      );
+      console.log(`[Middleware] User roles from backend: ${roles.join(", ")}`);
 
       if (!roles.includes("ADMIN")) {
         console.warn(
-          `[Middleware] User lacks ADMIN role. Has: ${roles.join(", ")}`
+          `[Middleware] User lacks ADMIN role. Has: ${roles.join(", ")}`,
         );
         const url = req.nextUrl.clone();
         url.pathname = UNAUTHORIZED_PATH;
@@ -99,14 +102,14 @@ export async function middleware(req: NextRequest) {
       // If backend is down but token is valid, allow passage
       // User will see error on page load but won't be locked out
       console.warn(
-        "[Middleware] Backend unreachable, allowing passage with valid JWT"
+        "[Middleware] Backend unreachable, allowing passage with valid JWT",
       );
       return NextResponse.next();
     }
   } catch (err) {
     console.error(
       "[Middleware] JWT verification failed:",
-      err instanceof Error ? err.message : String(err)
+      err instanceof Error ? err.message : String(err),
     );
     const url = req.nextUrl.clone();
     url.pathname = LOGIN_PATH;
