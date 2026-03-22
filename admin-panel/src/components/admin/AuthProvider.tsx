@@ -36,7 +36,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (!data) {
         setMe(null);
         setPermissions([]);
-        router.replace("/login");
         return;
       }
       setMe(data.user);
@@ -58,7 +57,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const can = (perm: string) => permissions.includes(perm);

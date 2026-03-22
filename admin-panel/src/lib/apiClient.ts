@@ -8,6 +8,7 @@ if (!API_BASE_URL) {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true, // include cookies in requests
 });
 
 apiClient.interceptors.request.use((config) => {

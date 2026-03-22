@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
 
 async function readJsonSafe(res: Response) {
   const text = await res.text();
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      credentials: "include", // 🔥 important
     });
 
     const data = await readJsonSafe(res);
@@ -56,20 +58,15 @@ export async function POST(req: Request) {
     }
 
     const resp = NextResponse.json({ ok: true, token });
-    const cookieConfig = {
+
+    const cookieConfig: Partial<ResponseCookie> = {
       httpOnly: true,
-      sameSite: (process.env.NODE_ENV === "production" ? "none" : "lax") as const,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
-      path: "/" as const,
+      path: "/",
       maxAge: 60 * 60 * 24 * 7,
     };
-    
-    console.log("[Login] Setting token cookie with config:", {
-      ...cookieConfig,
-      token: `${token.substring(0, 20)}...`,
-      NODE_ENV: process.env.NODE_ENV,
-    });
-    
+
     resp.cookies.set("token", token, cookieConfig);
 
     return resp;
