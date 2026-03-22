@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     const resp = NextResponse.json({ ok: true, token });
     const cookieConfig = {
       httpOnly: true,
-      sameSite: (process.env.NODE_ENV === "production" ? "none" : "lax") as const,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/" as const,
       maxAge: 60 * 60 * 24 * 7,
