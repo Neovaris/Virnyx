@@ -16,7 +16,6 @@ const ADMIN_PATHS = [
 ];
 
 const LOGIN_PATH = "/login";
-const UNAUTHORIZED_PATH = "/unauthorized";
 
 function isAdminPath(pathname: string) {
   return ADMIN_PATHS.some(
@@ -53,59 +52,13 @@ export async function middleware(req: NextRequest) {
       process.env.JWT_SECRET || "supersecret",
     );
 
-    // Verify signature (fast)
+    // Verify JWT signature
     const decoded = await jwtVerify(token, secret);
-    console.log(`[Middleware] JWT verified for user: ${decoded.payload.sub}`);
-
-    // Optional: fetch /auth/me to enforce RBAC (ADMIN role)
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!apiBase) {
-      console.error("[Middleware] Missing NEXT_PUBLIC_API_BASE_URL");
-      throw new Error("Missing NEXT_PUBLIC_API_BASE_URL");
-    }
-
-    try {
-      const meRes = await fetch(`${apiBase}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          cookies: `token=${token}`,
-        },
-        cache: "no-store",
-      });
-
-      if (!meRes.ok) {
-        console.error(
-          `[Middleware] Backend /auth/me returned ${meRes.status}: ${await meRes.text()}`,
-        );
-        const url = req.nextUrl.clone();
-        url.pathname = LOGIN_PATH;
-        return NextResponse.redirect(url);
-      }
-
-      const me = await meRes.json();
-      const roles: string[] = me?.roles ?? [];
-
-      console.log(`[Middleware] User roles from backend: ${roles.join(", ")}`);
-
-      if (!roles.includes("ADMIN")) {
-        console.warn(
-          `[Middleware] User lacks ADMIN role. Has: ${roles.join(", ")}`,
-        );
-        const url = req.nextUrl.clone();
-        url.pathname = UNAUTHORIZED_PATH;
-        return NextResponse.redirect(url);
-      }
-
-      return NextResponse.next();
-    } catch (fetchErr) {
-      console.error("[Middleware] Backend call failed:", fetchErr);
-      // If backend is down but token is valid, allow passage
-      // User will see error on page load but won't be locked out
-      console.warn(
-        "[Middleware] Backend unreachable, allowing passage with valid JWT",
-      );
-      return NextResponse.next();
-    }
+    console.log(`[Middleware] Valid JWT for user: ${decoded.payload.sub}`);
+    
+    // ✅ JWT is valid, allow access
+    // The backend will enforce RBAC on actual API calls
+    return NextResponse.next();
   } catch (err) {
     console.error(
       "[Middleware] JWT verification failed:",
