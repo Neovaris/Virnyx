@@ -24,28 +24,28 @@ final saleRefundsProvider = FutureProvider.family<List<RefundStatus>, String>((
 /// Auto-refresh provider for sale refunds - polls every 3 seconds
 final saleRefundsAutoRefreshProvider =
     StreamProvider.family<List<RefundStatus>, String>((ref, saleId) async* {
-  final api = ref.read(salesApiProvider);
-  
-  // Emit initial data
-  try {
-    final refunds = await api.getSaleRefunds(saleId);
-    yield refunds;
-  } catch (e) {
-    yield [];
-  }
+      final api = ref.read(salesApiProvider);
 
-  // Keep emitting updated refunds every 3 seconds
-  while (true) {
-    await Future.delayed(const Duration(seconds: 3));
-    try {
-      final refunds = await api.getSaleRefunds(saleId);
-      yield refunds;
-    } catch (e) {
-      // Continue polling even on error
-      continue;
-    }
-  }
-});
+      // Emit initial data
+      try {
+        final refunds = await api.getSaleRefunds(saleId);
+        yield refunds;
+      } catch (e) {
+        yield [];
+      }
+
+      // Keep emitting updated refunds every 3 seconds
+      while (true) {
+        await Future.delayed(const Duration(seconds: 3));
+        try {
+          final refunds = await api.getSaleRefunds(saleId);
+          yield refunds;
+        } catch (e) {
+          // Continue polling even on error
+          continue;
+        }
+      }
+    });
 
 /// Provider to fetch a specific refund
 final refundProvider = FutureProvider.family<RefundStatus?, String>((
@@ -57,9 +57,12 @@ final refundProvider = FutureProvider.family<RefundStatus?, String>((
 });
 
 /// Auto-refresh provider for individual refund - polls every 2 seconds
-final refundAutoRefreshProvider = StreamProvider.family<RefundStatus?, String>((ref, refundId) async* {
+final refundAutoRefreshProvider = StreamProvider.family<RefundStatus?, String>((
+  ref,
+  refundId,
+) async* {
   final api = ref.read(salesApiProvider);
-  
+
   // Emit initial data
   try {
     final refund = await api.getRefund(refundId);
@@ -103,6 +106,7 @@ class SalesApi {
     String? reference,
     String? shiftId,
     String? storeId,
+    String? cashierId,
     String? idempotencyKey,
   }) async {
     final isOnline = await ref
@@ -117,6 +121,7 @@ class SalesApi {
       'total': total,
       'shiftId': shiftId,
       'storeId': storeId,
+      'cashierId': cashierId,
       'idempotencyKey': tempId,
       'items': lines
           .map(
@@ -307,11 +312,7 @@ class SalesApi {
     required double amount,
     required String reason,
   }) async {
-    final body = {
-      'saleId': saleId,
-      'amount': amount,
-      'reason': reason,
-    };
+    final body = {'saleId': saleId, 'amount': amount, 'reason': reason};
 
     try {
       final res = await _client.postJson('/refunds', body: body);

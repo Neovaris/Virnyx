@@ -2,13 +2,15 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final shiftProvider =
-    NotifierProvider<ShiftController, ShiftState>(ShiftController.new);
+final shiftProvider = NotifierProvider<ShiftController, ShiftState>(
+  ShiftController.new,
+);
 
 class ShiftState {
   final bool initialized;
   final bool active;
   final String? shiftId;
+  final String? cashierId; // NEW: Store cashier ID
   final double openingCash;
   final DateTime? openedAt;
 
@@ -16,15 +18,17 @@ class ShiftState {
     required this.initialized,
     required this.active,
     required this.shiftId,
+    required this.cashierId,
     required this.openingCash,
     required this.openedAt,
   });
 
   const ShiftState.closed({this.initialized = false})
-      : active = false,
-        shiftId = null,
-        openingCash = 0,
-        openedAt = null;
+    : active = false,
+      shiftId = null,
+      cashierId = null,
+      openingCash = 0,
+      openedAt = null;
 
   bool get isOpen => active;
 
@@ -32,6 +36,7 @@ class ShiftState {
     bool? initialized,
     bool? active,
     String? shiftId,
+    String? cashierId,
     double? openingCash,
     DateTime? openedAt,
     bool clearShiftId = false,
@@ -41,27 +46,30 @@ class ShiftState {
       initialized: initialized ?? this.initialized,
       active: active ?? this.active,
       shiftId: clearShiftId ? null : (shiftId ?? this.shiftId),
+      cashierId: cashierId ?? this.cashierId,
       openingCash: openingCash ?? this.openingCash,
       openedAt: clearOpenedAt ? null : (openedAt ?? this.openedAt),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'active': active,
-        'shiftId': shiftId,
-        'openingCash': openingCash,
-        'openedAt': openedAt?.toIso8601String(),
-      };
+    'active': active,
+    'shiftId': shiftId,
+    'cashierId': cashierId,
+    'openingCash': openingCash,
+    'openedAt': openedAt?.toIso8601String(),
+  };
 
   static ShiftState fromJson(Map<String, dynamic> j) => ShiftState(
-        initialized: true,
-        active: (j['active'] as bool?) ?? false,
-        shiftId: j['shiftId'] as String?,
-        openingCash: (j['openingCash'] as num?)?.toDouble() ?? 0,
-        openedAt: j['openedAt'] == null
-            ? null
-            : DateTime.tryParse(j['openedAt'] as String),
-      );
+    initialized: true,
+    active: (j['active'] as bool?) ?? false,
+    shiftId: j['shiftId'] as String?,
+    cashierId: j['cashierId'] as String?,
+    openingCash: (j['openingCash'] as num?)?.toDouble() ?? 0,
+    openedAt: j['openedAt'] == null
+        ? null
+        : DateTime.tryParse(j['openedAt'] as String),
+  );
 }
 
 class ShiftController extends Notifier<ShiftState> {
@@ -92,6 +100,7 @@ class ShiftController extends Notifier<ShiftState> {
 
   Future<void> setOpenedShift({
     required String shiftId,
+    required String cashierId,
     required double openingCash,
     DateTime? openedAt,
   }) async {
@@ -101,6 +110,7 @@ class ShiftController extends Notifier<ShiftState> {
       initialized: true,
       active: true,
       shiftId: shiftId,
+      cashierId: cashierId,
       openingCash: openingCash,
       openedAt: openedAt ?? DateTime.now(),
     );

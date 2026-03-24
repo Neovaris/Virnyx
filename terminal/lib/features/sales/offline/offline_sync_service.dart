@@ -7,6 +7,8 @@ import '../../../core/offline/offline_db.dart';
 import '../../../core/offline/offline_queue_models.dart';
 import '../history/sales_api.dart';
 import '../../../core/logging/error_logger.dart';
+import '../../shell/notifications/terminal_notification_provider.dart';
+import '../../shell/notifications/terminal_notification_models.dart';
 
 final offlineSyncProvider = NotifierProvider<OfflineSyncService, SyncState>(
   OfflineSyncService.new,
@@ -75,6 +77,14 @@ class OfflineSyncService extends Notifier<SyncState> {
   Future<void> syncOfflineSales() async {
     final isOnline = await ref.read(offlineDetectorProvider.notifier).checkConnectivity();
     if (!isOnline) {
+      ref.read(terminalNotificationsProvider.notifier).add(
+        TerminalNotificationItem(
+          id: 'offline_mode_${DateTime.now().millisecondsSinceEpoch}',
+          title: '📡 No internet connection - working offline',
+          type: TerminalNotificationType.info,
+          createdAt: DateTime.now(),
+        ),
+      );
       state = state.copyWith(
         lastError: 'No internet connection',
         clearError: false,
@@ -128,6 +138,30 @@ class OfflineSyncService extends Notifier<SyncState> {
       await _db.clearSyncedSales();
 
       final remaining = failed.length;
+      
+      // Add notifications for sync results
+      if (synced.isNotEmpty) {
+        ref.read(terminalNotificationsProvider.notifier).add(
+          TerminalNotificationItem(
+            id: 'sync_success_${DateTime.now().millisecondsSinceEpoch}',
+            title: '✅ ${synced.length} offline sale(s) synced successfully',
+            type: TerminalNotificationType.success,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+      
+      if (failed.isNotEmpty) {
+        ref.read(terminalNotificationsProvider.notifier).add(
+          TerminalNotificationItem(
+            id: 'sync_failure_${DateTime.now().millisecondsSinceEpoch}',
+            title: '⚠️ ${failed.length} sale(s) failed to sync - will retry',
+            type: TerminalNotificationType.warning,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+      
       state = state.copyWith(
         syncing: false,
         hasPendingSales: remaining > 0,
@@ -142,6 +176,17 @@ class OfflineSyncService extends Notifier<SyncState> {
         'OfflineSync',
         'Sync batch failed: $e',
       );
+      
+      // Add notification for sync error
+      ref.read(terminalNotificationsProvider.notifier).add(
+        TerminalNotificationItem(
+          id: 'sync_error_${DateTime.now().millisecondsSinceEpoch}',
+          title: '❌ Sync failed: ${e.toString().split(':').last.trim()}',
+          type: TerminalNotificationType.error,
+          createdAt: DateTime.now(),
+        ),
+      );
+      
       state = state.copyWith(
         syncing: false,
         lastError: e.toString(),

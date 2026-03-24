@@ -204,14 +204,7 @@ class _TerminalTopStripState extends ConsumerState<TerminalTopStrip> {
                 },
               ),
               const SizedBox(width: 6),
-              _TopActionButton(
-                icon: Icons.settings_outlined,
-                tooltip: 'Settings',
-                onTap: () {
-                  context.go('/settings');
-                },
-              ),
-              const SizedBox(width: 6),
+
               _TopActionButton(
                 icon: Icons.receipt_long,
                 tooltip: 'Sales History',

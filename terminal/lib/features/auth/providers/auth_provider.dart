@@ -6,6 +6,8 @@ import '../../../core/session/session_store.dart';
 import '../../../core/logging/error_logger.dart';
 import '../data/auth_api.dart';
 import 'merchant_settings_provider.dart';
+import '../../shift/providers/shift_controller.dart';
+import '../../shift/data/shift_api.dart';
 
 class AuthState {
   final bool initialized;
@@ -147,6 +149,24 @@ class AuthController extends Notifier<AuthState> {
 
       // Load merchant settings after successful login
       await ref.read(merchantSettingsProvider.notifier).loadSettings();
+
+      // Auto-fetch current shift session if any exists
+      try {
+        final shiftApi = ShiftApi(ref);
+        final currentSession = await shiftApi.getActiveShift();
+        if (currentSession != null) {
+          await ref
+              .read(shiftProvider.notifier)
+              .setOpenedShift(
+                shiftId: currentSession.id,
+                cashierId: currentSession.cashierId ?? userId,
+                openingCash: currentSession.openingCash,
+                openedAt: currentSession.openedAt,
+              );
+        }
+      } catch (_) {
+        // OK if no active shift - user will open one
+      }
     } catch (e, st) {
       ErrorLogger.logBusinessError(
         'Login',

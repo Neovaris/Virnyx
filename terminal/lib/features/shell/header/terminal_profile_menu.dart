@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../auth/providers/auth_provider.dart';
+import '../../../features/shift/providers/shift_controller.dart';
+
 class TerminalProfileMenu extends ConsumerWidget {
   final String name;
   final String email;
@@ -28,10 +31,7 @@ class TerminalProfileMenu extends ConsumerWidget {
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Colors.white.withOpacity(0.08),
-              width: 1,
-            ),
+            side: BorderSide(color: Colors.white.withOpacity(0.08), width: 1),
           ),
         ),
       ),
@@ -58,9 +58,34 @@ class TerminalProfileMenu extends ConsumerWidget {
               _MenuDivider(),
               _ProfileMenuItem(
                 label: 'Close Shift',
-                icon: Icons.logout,
+                icon: Icons.exit_to_app,
                 onTap: () {
                   Future.microtask(() => context.go('/close-shift'));
+                },
+              ),
+              _MenuDivider(),
+              Consumer(
+                builder: (context, ref, child) {
+                  final shift = ref.watch(shiftProvider);
+                  final isShiftActive = shift.active;
+
+                  return _ProfileMenuItem(
+                    label: 'Logout',
+                    icon: Icons.logout_outlined,
+                    destructive: true,
+                    enabled: !isShiftActive,
+                    tooltip: isShiftActive ? 'Close shift before logout' : null,
+                    onTap: isShiftActive
+                        ? null
+                        : () {
+                            Future.microtask(() async {
+                              ref.read(authProvider.notifier).logout();
+                              if (context.mounted) {
+                                context.go('/login');
+                              }
+                            });
+                          },
+                  );
                 },
               ),
             ],
@@ -125,10 +150,7 @@ class _ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF1E40AF),
-            const Color(0xFF152C6B),
-          ],
+          colors: [const Color(0xFF1E40AF), const Color(0xFF152C6B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -164,9 +186,7 @@ class _ProfileHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.14),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.08),
-              ),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
             child: Text(
               badge,
@@ -209,15 +229,19 @@ class _ProfileHeader extends StatelessWidget {
 
 class _ProfileMenuItem extends StatefulWidget {
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final IconData? icon;
   final bool destructive;
+  final bool enabled;
+  final String? tooltip;
 
   const _ProfileMenuItem({
     required this.label,
     required this.onTap,
     this.icon,
     this.destructive = false,
+    this.enabled = true,
+    this.tooltip,
   });
 
   @override
@@ -229,45 +253,57 @@ class _ProfileMenuItemState extends State<_ProfileMenuItem> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor =
-        widget.destructive ? const Color(0xFFF87171) : Colors.white;
+    final textColor = widget.destructive
+        ? const Color(0xFFF87171)
+        : Colors.white;
     final iconColor = widget.destructive
         ? const Color(0xFFF87171)
         : Colors.white.withOpacity(0.72);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: InkWell(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: _hovering
-              ? Colors.white.withOpacity(0.05)
-              : Colors.transparent,
-          child: Row(
-            children: [
-              if (widget.icon != null) ...[
-                Icon(
-                  widget.icon,
-                  size: 16,
-                  color: iconColor,
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+    // Disabled state colors
+    final disabledTextColor = Colors.white.withOpacity(0.4);
+    final disabledIconColor = Colors.white.withOpacity(0.2);
+
+    final finalTextColor = widget.enabled ? textColor : disabledTextColor;
+    final finalIconColor = widget.enabled ? iconColor : disabledIconColor;
+
+    return Tooltip(
+      message: widget.tooltip ?? '',
+      showDuration: const Duration(seconds: 3),
+      child: MouseRegion(
+        onEnter: widget.enabled
+            ? (_) => setState(() => _hovering = true)
+            : null,
+        onExit: widget.enabled
+            ? (_) => setState(() => _hovering = false)
+            : null,
+        child: InkWell(
+          onTap: widget.enabled ? widget.onTap : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: (_hovering && widget.enabled)
+                ? Colors.white.withOpacity(0.05)
+                : Colors.transparent,
+            child: Row(
+              children: [
+                if (widget.icon != null) ...[
+                  Icon(widget.icon, size: 16, color: finalIconColor),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: finalTextColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

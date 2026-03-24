@@ -9,18 +9,21 @@ final shiftApiProvider = Provider<ShiftApi>((ref) => ShiftApi(ref));
 
 class OpenedShift {
   final String id;
+  final String? cashierId;
   final double openingCash;
   final DateTime? openedAt;
 
   const OpenedShift({
     required this.id,
     required this.openingCash,
+    this.cashierId,
     required this.openedAt,
   });
 
   factory OpenedShift.fromJson(Map<String, dynamic> j) {
     return OpenedShift(
       id: (j['id'] ?? '').toString(),
+      cashierId: j['cashierId'] as String?,
       openingCash: (j['openingCash'] as num?)?.toDouble() ?? 0,
       openedAt: j['openedAt'] == null
           ? null
@@ -33,10 +36,7 @@ class ShiftCloseSummary {
   final Map<String, dynamic> sales;
   final Map<String, dynamic> payments;
 
-  const ShiftCloseSummary({
-    required this.sales,
-    required this.payments,
-  });
+  const ShiftCloseSummary({required this.sales, required this.payments});
 
   int get completedCount => (sales['completedCount'] as int?) ?? 0;
   int get voidedCount => (sales['voidedCount'] as int?) ?? 0;
@@ -54,14 +54,9 @@ class ShiftApi {
   }
 
   Future<OpenedShift> openShift({required double openingCash}) async {
-    final body = {
-      'openingCash': openingCash,
-    };
+    final body = {'openingCash': openingCash};
 
-    final res = await _client.postJson(
-      '/sessions/open',
-      body: body,
-    );
+    final res = await _client.postJson('/sessions/open', body: body);
 
     final sessionJson = res['session'] ?? res;
     if (sessionJson is Map<String, dynamic>) {
@@ -87,10 +82,7 @@ class ShiftApi {
   }
 
   Future<ShiftCloseSummary> getShiftSummary(String date) async {
-    final res = await _client.getJson(
-      '/reports/daily',
-      query: {'date': date},
-    );
+    final res = await _client.getJson('/reports/daily', query: {'date': date});
 
     final sales = Map<String, dynamic>.from(res['sales'] as Map? ?? {});
     final payments = Map<String, dynamic>.from(res['payments'] as Map? ?? {});
@@ -108,9 +100,6 @@ class ShiftApi {
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
     };
 
-    await _client.postJson(
-      '/sessions/$sessionId/close',
-      body: body,
-    );
+    await _client.postJson('/sessions/$sessionId/close', body: body);
   }
 }

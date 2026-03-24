@@ -37,8 +37,12 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
       final active = await ref.read(shiftApiProvider).getActiveShift();
 
       if (active != null) {
-        await ref.read(shiftProvider.notifier).setOpenedShift(
+        final auth = ref.read(authProvider);
+        await ref
+            .read(shiftProvider.notifier)
+            .setOpenedShift(
               shiftId: active.id,
+              cashierId: active.cashierId ?? auth.userId ?? 'unknown',
               openingCash: active.openingCash,
               openedAt: active.openedAt,
             );
@@ -70,12 +74,16 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
     setState(() => _submitting = true);
 
     try {
-      final opened = await ref.read(shiftApiProvider).openShift(
-            openingCash: openingCash,
-          );
+      final auth = ref.read(authProvider);
+      final opened = await ref
+          .read(shiftApiProvider)
+          .openShift(openingCash: openingCash);
 
-      await ref.read(shiftProvider.notifier).setOpenedShift(
+      await ref
+          .read(shiftProvider.notifier)
+          .setOpenedShift(
             shiftId: opened.id,
+            cashierId: opened.cashierId ?? auth.userId ?? 'unknown',
             openingCash: opened.openingCash,
             openedAt: opened.openedAt,
           );
@@ -84,9 +92,9 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
       context.go('/sales');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Open shift failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Open shift failed: $e')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -103,11 +111,7 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
         : role[0].toUpperCase() + role.substring(1);
 
     if (_checkingActiveShift) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -128,10 +132,7 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
                   const SizedBox(height: 8),
                   const Text(
                     'Start Shift',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -170,7 +171,9 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
                       onPressed: _submitting
                           ? null
                           : () async {
-                              await ref.read(shiftProvider.notifier).closeShift();
+                              await ref
+                                  .read(shiftProvider.notifier)
+                                  .closeShift();
                               ref.read(authProvider.notifier).logout();
                               if (!mounted) return;
                               context.go('/login');
