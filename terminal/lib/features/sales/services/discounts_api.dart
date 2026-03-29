@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/api/api_config.dart';
 
@@ -179,8 +180,6 @@ class DiscountsApi {
 }
 
 final discountsApiProvider = Provider((ref) {
-  final authState = ref.watch(authProvider);
-  final token = authState.token ?? '';
-  final client = ApiClient(baseUrl: ApiConfig.baseUrl, token: token);
-  return DiscountsApi(client: client);
+  final apiClient = ref.watch(apiProvider);
+  return DiscountsApi(client: apiClient);
 });
