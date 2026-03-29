@@ -8,11 +8,12 @@ import '../../../core/offline/offline_detector.dart';
 import '../../sales/offline/offline_sync_service.dart';
 import '../../shift/providers/shift_controller.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/merchant_settings_provider.dart';
 
 final terminalStatusProvider =
     NotifierProvider<TerminalStatusNotifier, TerminalStatusState>(
-  TerminalStatusNotifier.new,
-);
+      TerminalStatusNotifier.new,
+    );
 
 class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
   Timer? _clockTimer;
@@ -22,7 +23,7 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
   TerminalStatusState build() {
     _startClock();
     _initializeAppVersion();
-    
+
     ref.onDispose(() {
       _clockTimer?.cancel();
     });
@@ -32,6 +33,7 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
     final syncState = ref.watch(offlineSyncProvider);
     final shift = ref.watch(shiftProvider);
     final auth = ref.watch(authProvider);
+    final merchantSettings = ref.watch(merchantSettingsProvider);
 
     final connectionStatus = isOffline
         ? TerminalConnectionStatus.offline
@@ -49,7 +51,7 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
       shiftStatus: shiftStatus,
       cashierName: cashierName,
       terminalName: 'Terminal 01',
-      storeName: 'Main Store',
+      storeName: merchantSettings.storeName,
       appVersion: _cachedAppVersion ?? '1.0.0',
       now: DateTime.now(),
       lastSyncAt: syncState.lastSyncTime,

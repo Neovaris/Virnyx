@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_provider.dart';
 import '../auth/providers/auth_provider.dart';
+import '../shell/notifications/terminal_notification_provider.dart';
+import '../shell/notifications/terminal_notification_models.dart';
 
 class InventoryItem {
   final String productId;
@@ -104,9 +106,27 @@ class InventoryController extends Notifier<InventoryState> {
       final rawItems = (res['items'] ?? res['data'] ?? []) as List;
 
       final inventoryMap = <String, InventoryItem>{};
+      final lowStockItems = <String>[];
+      
       for (final item in rawItems) {
         final inv = InventoryItem.fromJson(item as Map<String, dynamic>);
         inventoryMap[inv.productId] = inv;
+        if (inv.isLowStock) {
+          lowStockItems.add(inv.productId);
+        }
+      }
+
+      // Add notification for low stock items if any
+      if (lowStockItems.isNotEmpty) {
+        final count = lowStockItems.length;
+        ref.read(terminalNotificationsProvider.notifier).add(
+          TerminalNotificationItem(
+            id: 'low_stock_${DateTime.now().millisecondsSinceEpoch}',
+            title: '⚠️ $count item(s) running low on stock',
+            type: TerminalNotificationType.warning,
+            createdAt: DateTime.now(),
+          ),
+        );
       }
 
       state = state.copyWith(

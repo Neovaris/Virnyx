@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PasswordInput } from "@/components/admin/password_input";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -318,41 +319,19 @@ export default function SignupPage() {
                 >
                   Password
                 </label>
-                <div
-                  className={`flex items-center relative transition-all duration-200 rounded-lg ${
+                <PasswordInput
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFocusedField("password")}
+                  onBlur={() => setFocusedField(null)}
+                  required
+                  className={`${
                     focusedField === "password"
                       ? "ring-2 ring-blue-500/50"
                       : ""
                   }`}
-                >
-                  <div className="absolute left-4 text-slate-400 pointer-events-none">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setFocusedField("password")}
-                    onBlur={() => setFocusedField(null)}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors duration-200"
-                  />
-                </div>
+                />
                 <p className="text-xs text-slate-500 mt-1">
                   Minimum 8 characters
                 </p>
@@ -366,41 +345,19 @@ export default function SignupPage() {
                 >
                   Confirm Password
                 </label>
-                <div
-                  className={`flex items-center relative transition-all duration-200 rounded-lg ${
+                <PasswordInput
+                  id="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onFocus={() => setFocusedField("confirmPassword")}
+                  onBlur={() => setFocusedField(null)}
+                  required
+                  className={`${
                     focusedField === "confirmPassword"
                       ? "ring-2 ring-blue-500/50"
                       : ""
                   }`}
-                >
-                  <div className="absolute left-4 text-slate-400 pointer-events-none">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    onFocus={() => setFocusedField("confirmPassword")}
-                    onBlur={() => setFocusedField(null)}
-                    className="w-full pl-12 pr-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors duration-200"
-                  />
-                </div>
+                />
               </div>
             </>
           )}

@@ -57,6 +57,7 @@ export async function productRoutes(app: FastifyInstance) {
       const sku = body.sku !== undefined ? asString(body.sku) : "";
       const barcode = body.barcode !== undefined ? asString(body.barcode) : "";
       const imageUrl = body.imageUrl !== undefined ? normalizeImageUrl(body.imageUrl) : null;
+      const category = body.category !== undefined ? asString(body.category) : "Uncategorized";
 
       if (!name) return reply.code(400).send({ message: "name is required" });
       if (!isValidPrice(price)) return reply.code(400).send({ message: "price must be a number >= 0" });
@@ -73,6 +74,7 @@ export async function productRoutes(app: FastifyInstance) {
               merchantId,
               name,
               price,
+              category,
               sku: sku || null,
               barcode: barcode || null,
               imageUrl,
@@ -212,6 +214,9 @@ export async function productRoutes(app: FastifyInstance) {
         const price = asNumber(body.price);
         if (!isValidPrice(price)) return reply.code(400).send({ message: "price must be a number >= 0" });
         data.price = price;
+      }
+      if (body.category !== undefined) {
+        data.category = asString(body.category) || "Uncategorized";
       }
       if (body.sku !== undefined) data.sku = asString(body.sku) || null;
       if (body.barcode !== undefined) data.barcode = asString(body.barcode) || null;

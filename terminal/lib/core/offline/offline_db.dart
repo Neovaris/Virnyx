@@ -11,7 +11,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getSalesQueue();
     queue.add(sale);
-    
+
     final json = queue.map((s) => jsonEncode(s.toJson())).toList();
     await prefs.setStringList(_salesQueueKey, json);
   }
@@ -19,7 +19,7 @@ class OfflineDb {
   Future<List<QueuedSale>> getSalesQueue() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_salesQueueKey) ?? [];
-    
+
     return jsonList
         .map((s) {
           try {
@@ -37,7 +37,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getSalesQueue();
     final index = queue.indexWhere((s) => s.id == sale.id);
-    
+
     if (index >= 0) {
       queue[index] = sale;
       final json = queue.map((s) => jsonEncode(s.toJson())).toList();
@@ -49,7 +49,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getSalesQueue();
     queue.removeWhere((s) => s.id == saleId);
-    
+
     final json = queue.map((s) => jsonEncode(s.toJson())).toList();
     await prefs.setStringList(_salesQueueKey, json);
   }
@@ -58,9 +58,14 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getSalesQueue();
     queue.removeWhere((s) => s.synced);
-    
+
     final json = queue.map((s) => jsonEncode(s.toJson())).toList();
     await prefs.setStringList(_salesQueueKey, json);
+  }
+
+  Future<void> clearAllSales() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_salesQueueKey);
   }
 
   // Receipt queue management
@@ -68,7 +73,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getReceiptsQueue();
     queue.add(receipt);
-    
+
     final json = queue.map((r) => jsonEncode(r.toJson())).toList();
     await prefs.setStringList(_receiptsQueueKey, json);
   }
@@ -76,7 +81,7 @@ class OfflineDb {
   Future<List<QueuedReceipt>> getReceiptsQueue() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_receiptsQueueKey) ?? [];
-    
+
     return jsonList
         .map((r) {
           try {
@@ -94,7 +99,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getReceiptsQueue();
     final index = queue.indexWhere((r) => r.id == receipt.id);
-    
+
     if (index >= 0) {
       queue[index] = receipt;
       final json = queue.map((r) => jsonEncode(r.toJson())).toList();
@@ -106,7 +111,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getReceiptsQueue();
     queue.removeWhere((r) => r.id == receiptId);
-    
+
     final json = queue.map((r) => jsonEncode(r.toJson())).toList();
     await prefs.setStringList(_receiptsQueueKey, json);
   }
@@ -115,7 +120,7 @@ class OfflineDb {
     final prefs = await SharedPreferences.getInstance();
     final queue = await getReceiptsQueue();
     queue.removeWhere((r) => r.printed);
-    
+
     final json = queue.map((r) => jsonEncode(r.toJson())).toList();
     await prefs.setStringList(_receiptsQueueKey, json);
   }

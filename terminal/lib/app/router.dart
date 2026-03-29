@@ -20,10 +20,7 @@ GoRouter appRouter(WidgetRef ref) {
         path: '/bootstrap',
         builder: (_, _) => const AppBootstrapScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/open-shift',
         builder: (context, state) => const OpenShiftScreen(),
@@ -32,23 +29,14 @@ GoRouter appRouter(WidgetRef ref) {
         path: '/shift',
         builder: (context, state) => const OpenShiftScreen(),
       ),
-      GoRoute(
-        path: '/sales',
-        builder: (context, state) => const SalesScreen(),
-      ),
-      GoRoute(
-        path: '/history',
-        builder: (_, _) => const SalesHistoryScreen(),
-      ),
+      GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
+      GoRoute(path: '/history', builder: (_, _) => const SalesHistoryScreen()),
       GoRoute(
         path: '/history/:id',
         builder: (_, state) =>
             SaleDetailsScreen(saleId: state.pathParameters['id']!),
       ),
-      GoRoute(
-        path: '/pay',
-        builder: (_, _) => const PaymentScreen(),
-      ),
+      GoRoute(path: '/pay', builder: (_, _) => const PaymentScreen()),
       GoRoute(
         path: '/close-shift',
         builder: (context, state) => const ShiftCloseSummaryScreen(),

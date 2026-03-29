@@ -6,6 +6,7 @@ export type MeResponse = {
     email: string;
     merchantId: string;
     storeId?: string | null;
+    storeName?: string | null;
     createdAt: string;
     lastLoginAt?: string | null;
   };

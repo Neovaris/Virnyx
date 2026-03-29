@@ -10,7 +10,9 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/shift_controller.dart';
 import '../data/shift_api.dart';
 
-final closeShiftSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+final closeShiftSummaryProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
   final auth = ref.read(authProvider);
   final token = auth.token;
   if (token == null || token.isEmpty) {
@@ -19,21 +21,36 @@ final closeShiftSummaryProvider = FutureProvider<Map<String, dynamic>>((ref) asy
 
   final today = DateTime.now().toIso8601String().split('T').first;
 
-  final res = await http.get(
-    Uri.parse('${ApiConfig.baseUrl}/reports/daily?date=$today'),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
+  try {
+    final res = await http
+        .get(
+          Uri.parse('${ApiConfig.baseUrl}/reports/daily?date=$today'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        )
+        .timeout(
+          const Duration(seconds: 5), // 5 second timeout
+          onTimeout: () => throw Exception('Shift summary request timed out'),
+        );
 
-  if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw Exception(
-      'Failed to load shift summary: ${res.statusCode} ${res.body}',
-    );
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Failed to load shift summary: ${res.statusCode}',
+      );
+    }
+
+    return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+  } catch (e) {
+    // Return empty summary if it fails - still allow closing shift
+    return {
+      'sales': {'completedCount': 0, 'voidedCount': 0, 'grossTotal': 0, 'refunds': 0, 'netTotal': 0},
+      'payments': {},
+      '_error': true,
+      '_errorMessage': e.toString(),
+    };
   }
-
-  return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
 });
 
 class ShiftCloseSummaryScreen extends ConsumerStatefulWidget {
@@ -71,20 +88,24 @@ class _ShiftCloseSummaryScreenState
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Failed to load summary:\n$e',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        data: (data) {
+        error: (e, _) => _buildCloseForm({
+          'sales': {'completedCount': 0, 'voidedCount': 0, 'grossTotal': 0, 'refunds': 0, 'netTotal': 0},
+          'payments': {},
+          '_error': true,
+          '_errorMessage': e.toString(),
+        }),
+        data: (data) => _buildCloseForm(data),
+      ),
+    );
+  }
+
+  Widget _buildCloseForm(Map<String, dynamic> data) {
           final sales = Map<String, dynamic>.from(data['sales'] as Map? ?? {});
           final payments = Map<String, dynamic>.from(
             data['payments'] as Map? ?? {},
           );
+          final hasError = data['_error'] as bool? ?? false;
+          final errorMsg = data['_errorMessage'] as String?;
 
           final completedCount = sales['completedCount'] ?? 0;
           final voidedCount = sales['voidedCount'] ?? 0;
@@ -98,55 +119,87 @@ class _ShiftCloseSummaryScreenState
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _row('Completed Sales', '$completedCount'),
-                          _row('Voided Sales', '$voidedCount'),
-                          _row(
-                            'Gross Total',
-                            '₵ ${grossTotal.toStringAsFixed(2)}',
-                          ),
-                          _row('Refunds', '₵ ${refunds.toStringAsFixed(2)}'),
-                          _row(
-                            'Net Total',
-                            '₵ ${netTotal.toStringAsFixed(2)}',
-                            bold: true,
-                          ),
-                        ],
+                  if (hasError)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        border: Border.all(color: Colors.orange),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Payments',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
+                            '⚠️ Could not load summary',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(height: 10),
-                          if (payments.isEmpty)
-                            const Text('No payments found')
-                          else
-                            ...payments.entries.map(
-                              (e) => _row(
-                                e.key,
-                                '₵ ${((e.value as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
-                              ),
-                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            errorMsg ?? 'Summary data unavailable',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'You can still close the shift below.',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ],
                       ),
+                    )
+                  else
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _row('Completed Sales', '$completedCount'),
+                            _row('Voided Sales', '$voidedCount'),
+                            _row(
+                              'Gross Total',
+                              '₵ ${grossTotal.toStringAsFixed(2)}',
+                            ),
+                            _row('Refunds', '₵ ${refunds.toStringAsFixed(2)}'),
+                            _row(
+                              'Net Total',
+                              '₵ ${netTotal.toStringAsFixed(2)}',
+                              bold: true,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  const SizedBox(height: 12),
+                  if (!hasError)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Payments',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            if (payments.isEmpty)
+                              const Text('No payments found')
+                            else
+                              ...payments.entries.map(
+                                (e) => _row(
+                                  e.key,
+                                  '₵ ${((e.value as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
                   const SizedBox(height: 12),
                   Card(
                     child: Padding(
@@ -184,7 +237,9 @@ class _ShiftCloseSummaryScreenState
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _closing ? null : () => context.go('/sales'),
+                          onPressed: _closing
+                              ? null
+                              : () => context.go('/sales'),
                           child: const Text('Cancel'),
                         ),
                       ),
@@ -214,7 +269,9 @@ class _ShiftCloseSummaryScreenState
                                   setState(() => _closing = true);
 
                                   try {
-                                    await ref.read(shiftApiProvider).closeShift(
+                                    await ref
+                                        .read(shiftApiProvider)
+                                        .closeShift(
                                           sessionId: sessionId,
                                           closingCash: closingCash,
                                         );
@@ -232,13 +289,51 @@ class _ShiftCloseSummaryScreenState
                                     context.go('/open-shift');
                                   } catch (e) {
                                     if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
+
+                                    // If close fails, offer to force logout
+                                    final forceLogout = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Close Shift Failed'),
                                         content: Text(
-                                          'Close shift failed: $e',
+                                          '$e\n\nThe session may have been closed elsewhere. Force clear local data and logout?',
                                         ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text('Force Logout'),
+                                          ),
+                                        ],
                                       ),
                                     );
+
+                                    if (forceLogout == true) {
+                                      // Clear local shift state even if backend failed
+                                      await ref
+                                          .read(shiftProvider.notifier)
+                                          .closeShift();
+                                      // Logout
+                                      ref.read(authProvider.notifier).logout();
+                                      if (context.mounted) {
+                                        context.go('/login');
+                                      }
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Close shift failed: $e',
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   } finally {
                                     if (mounted) {
                                       setState(() => _closing = false);
@@ -262,9 +357,6 @@ class _ShiftCloseSummaryScreenState
               ),
             ),
           );
-        },
-      ),
-    );
   }
 
   static Widget _row(String k, String v, {bool bold = false}) {
