@@ -25,11 +25,14 @@ export default function AdminShell({
   }
 
   // Not logged in
-  if (!me) return <>{children}</>;
-
+  if (!loading && !me) {
+    window.location.href = "/login";
+    return null;
+  }
+  
   const nav = [
-    { href: "/", label: "Home" },
-    { href: "/dashboard", label: "Dashboard" },
+    { href: "/", label: "Dashboard" },
+    { href: "/dashboard", label: "Analytics" },
     { href: "/products", label: "Products" },
     { href: "/inventory", label: "Inventory" },
     { href: "/sales", label: "Sales" },
@@ -45,7 +48,6 @@ export default function AdminShell({
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
       <div className="flex">
-
         {/* ✅ MOBILE SIDEBAR */}
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -60,9 +62,7 @@ export default function AdminShell({
 
           <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50 mb-8">
             <p className="text-xs text-slate-400 mb-1">Logged in as</p>
-            <p className="text-sm font-medium text-slate-100">
-              {me.fullName}
-            </p>
+            <p className="text-sm font-medium text-slate-100">{me.fullName}</p>
             <p className="text-xs text-slate-500">{me.email}</p>
           </div>
 
@@ -94,10 +94,8 @@ export default function AdminShell({
           </button>
         </aside>
 
-
         {/* ✅ MAIN CONTENT */}
         <main className="flex-1 flex flex-col lg:ml-64 min-h-dvh">
-
           {/* HEADER */}
           <div className="border-b border-slate-700/50 px-4 py-4 flex justify-between items-center bg-slate-900/50">
             <div className="flex items-center gap-3">
@@ -126,9 +124,7 @@ export default function AdminShell({
           </div>
 
           {/* PAGE CONTENT */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {children}
-          </div>
+          <div className="flex-1 p-6 overflow-y-auto">{children}</div>
         </main>
       </div>
     </div>

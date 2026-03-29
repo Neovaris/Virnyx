@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PasswordInput } from "@/components/admin/password_input";
 
 // ✅ Generic JSON parser
 async function readJsonSafe<T = any>(res: Response): Promise<T | null> {
@@ -119,15 +120,13 @@ export default function LoginPage() {
             <label className="block text-sm text-slate-200 mb-2">
               Password
             </label>
-            <input
-              type="password"
-              required
-              placeholder="••••••••"
+            <PasswordInput
+              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField(null)}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              required
             />
           </div>
 

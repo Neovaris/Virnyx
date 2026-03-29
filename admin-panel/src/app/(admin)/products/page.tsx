@@ -6,6 +6,7 @@ import Guard from "@/components/admin/Guard";
 type Product = {
   id: string;
   name: string;
+  category: string;
   price: number;
   sku: string | null;
   barcode: string | null;
@@ -42,6 +43,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState({
     name: "",
+    category: "",
     price: "",
     sku: "",
     barcode: "",
@@ -85,7 +87,7 @@ export default function ProductsPage() {
   const openCreate = () => {
     setErr(null);
     setEditing(null);
-    setForm({ name: "", price: "", sku: "", barcode: "", imageUrl: "" });
+    setForm({ name: "", category: "", price: "", sku: "", barcode: "", imageUrl: "" });
     setOpen(true);
   };
 
@@ -94,6 +96,7 @@ export default function ProductsPage() {
     setEditing(p);
     setForm({
       name: p.name ?? "",
+      category: p.category ?? "",
       price: String(p.price ?? 0),
       sku: p.sku ?? "",
       barcode: p.barcode ?? "",
@@ -146,6 +149,7 @@ export default function ProductsPage() {
 
     const payload: any = {
       name,
+      category: form.category.trim() || "Uncategorized",
       price: priceNum,
       sku: form.sku.trim() || undefined,
       barcode: form.barcode.trim() || undefined,
@@ -237,7 +241,8 @@ export default function ProductsPage() {
               <thead className="bg-slate-900/60">
                 <tr>
                   <Th label="Image" />
-                  <Th label="Name" onClick={() => toggleSort("name")} active={sort === "name"} dir={order} />
+                  <Th label="Name" onClick={() => toggleSort("name")} active={sort === "name"} dir={order} />                  
+                  <Th label= "Category" />                  
                   <Th label="SKU" />
                   <Th label="Barcode" />
                   <Th label="Price" right onClick={() => toggleSort("price")} active={sort === "price"} dir={order} />
@@ -251,13 +256,13 @@ export default function ProductsPage() {
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={7}>
+                    <td className="px-4 py-6 text-slate-400\" colSpan={8}>
                       Loading products...
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={7}>
+                    <td className="px-4 py-6 text-slate-400\" colSpan={8}>
                       No products found.
                     </td>
                   </tr>
@@ -276,7 +281,8 @@ export default function ProductsPage() {
                           <div className="h-9 w-9 rounded-md border border-slate-800 bg-slate-900/50" />
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-100 font-medium">{p.name}</td>
+                      <td className="px-4 py-3 text-slate-100 font-medium">{p.name}</td>                      
+                      <td className="px-4 py-3 text-slate-300">{p.category || "Uncategorized"}</td>                      
                       <td className="px-4 py-3 text-slate-300">{p.sku ?? "-"}</td>
                       <td className="px-4 py-3 text-slate-300">{p.barcode ?? "-"}</td>
                       <td className="px-4 py-3 text-right text-slate-100">{money(p.price)}</td>
@@ -348,7 +354,7 @@ export default function ProductsPage() {
                     {editing ? "Edit Product" : "New Product"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Fields: name, price, sku, barcode, image
+                    Fields: name, category, price, sku, barcode, image
                   </p>
                 </div>
 
@@ -366,6 +372,16 @@ export default function ProductsPage() {
                     aria-label="Product name"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </Field>
+
+                <Field label="Category (optional)">
+                  <input
+                    aria-label="Product category"
+                    placeholder="e.g., Burgers, Drinks, Desserts"
+                    value={form.category}
+                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                     className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </Field>

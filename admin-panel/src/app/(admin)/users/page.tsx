@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Guard from "@/components/admin/Guard";
 import UserRoleEditor from "@/components/admin/UserRoleEditor";
+import { PasswordInput } from "@/components/admin/password_input";
 
 type RoleObj = { id: string; name: string };
 
@@ -476,8 +477,7 @@ export default function UsersPage() {
 
                 {!editing ? (
                   <Field label="Password (create only)">
-                    <input
-                      type="password"
+                    <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"

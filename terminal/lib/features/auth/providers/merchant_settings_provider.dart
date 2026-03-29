@@ -87,6 +87,7 @@ class MerchantSettingsNotifier extends Notifier<MerchantSettings> {
       minRefundAmount: state.minRefundAmount,
       lowStockThreshold: state.lowStockThreshold,
       currency: state.currency,
+      storeName: state.storeName,
     );
   }
 
@@ -116,6 +117,7 @@ class MerchantSettingsNotifier extends Notifier<MerchantSettings> {
       minRefundAmount: state.minRefundAmount,
       lowStockThreshold: state.lowStockThreshold,
       currency: state.currency,
+      storeName: state.storeName,
     );
   }
 }

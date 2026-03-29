@@ -32,6 +32,7 @@ class MerchantSettings {
   // Store Info
   final String lowStockThreshold;
   final String currency;
+  final String storeName;
 
   const MerchantSettings({
     required this.taxEnabled,
@@ -58,6 +59,7 @@ class MerchantSettings {
     required this.minRefundAmount,
     required this.lowStockThreshold,
     required this.currency,
+    required this.storeName,
   });
 
   factory MerchantSettings.fromJson(Map<String, dynamic> j) {
@@ -104,6 +106,8 @@ class MerchantSettings {
           .toDouble(),
       lowStockThreshold: '${(j['store']?['lowStockThreshold'] ?? 10)}',
       currency: j['merchant']?['currency'] ?? 'GHS',
+      storeName:
+          j['store']?['name'] ?? j['merchant']?['storeName'] ?? 'My Store',
     );
   }
 
@@ -133,6 +137,7 @@ class MerchantSettings {
       minRefundAmount: 0.0,
       lowStockThreshold: '10',
       currency: 'GHS',
+      storeName: 'My Store',
     );
   }
 

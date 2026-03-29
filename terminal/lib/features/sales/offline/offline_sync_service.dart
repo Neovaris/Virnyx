@@ -30,11 +30,11 @@ class SyncState {
   });
 
   const SyncState.initial()
-      : syncing = false,
-        hasPendingSales = false,
-        pendingSalesCount = 0,
-        lastError = null,
-        lastSyncTime = null;
+    : syncing = false,
+      hasPendingSales = false,
+      pendingSalesCount = 0,
+      lastError = null,
+      lastSyncTime = null;
 
   SyncState copyWith({
     bool? syncing,
@@ -75,16 +75,20 @@ class OfflineSyncService extends Notifier<SyncState> {
   }
 
   Future<void> syncOfflineSales() async {
-    final isOnline = await ref.read(offlineDetectorProvider.notifier).checkConnectivity();
+    final isOnline = await ref
+        .read(offlineDetectorProvider.notifier)
+        .checkConnectivity();
     if (!isOnline) {
-      ref.read(terminalNotificationsProvider.notifier).add(
-        TerminalNotificationItem(
-          id: 'offline_mode_${DateTime.now().millisecondsSinceEpoch}',
-          title: '📡 No internet connection - working offline',
-          type: TerminalNotificationType.info,
-          createdAt: DateTime.now(),
-        ),
-      );
+      ref
+          .read(terminalNotificationsProvider.notifier)
+          .add(
+            TerminalNotificationItem(
+              id: 'offline_mode_${DateTime.now().millisecondsSinceEpoch}',
+              title: '📡 No internet connection - working offline',
+              type: TerminalNotificationType.info,
+              createdAt: DateTime.now(),
+            ),
+          );
       state = state.copyWith(
         lastError: 'No internet connection',
         clearError: false,
@@ -138,30 +142,35 @@ class OfflineSyncService extends Notifier<SyncState> {
       await _db.clearSyncedSales();
 
       final remaining = failed.length;
-      
+
       // Add notifications for sync results
       if (synced.isNotEmpty) {
-        ref.read(terminalNotificationsProvider.notifier).add(
-          TerminalNotificationItem(
-            id: 'sync_success_${DateTime.now().millisecondsSinceEpoch}',
-            title: '✅ ${synced.length} offline sale(s) synced successfully',
-            type: TerminalNotificationType.success,
-            createdAt: DateTime.now(),
-          ),
-        );
+        ref
+            .read(terminalNotificationsProvider.notifier)
+            .add(
+              TerminalNotificationItem(
+                id: 'sync_success_${DateTime.now().millisecondsSinceEpoch}',
+                title: '✅ ${synced.length} offline sale(s) synced successfully',
+                type: TerminalNotificationType.success,
+                createdAt: DateTime.now(),
+              ),
+            );
       }
-      
+
       if (failed.isNotEmpty) {
-        ref.read(terminalNotificationsProvider.notifier).add(
-          TerminalNotificationItem(
-            id: 'sync_failure_${DateTime.now().millisecondsSinceEpoch}',
-            title: '⚠️ ${failed.length} sale(s) failed to sync - will retry',
-            type: TerminalNotificationType.warning,
-            createdAt: DateTime.now(),
-          ),
-        );
+        ref
+            .read(terminalNotificationsProvider.notifier)
+            .add(
+              TerminalNotificationItem(
+                id: 'sync_failure_${DateTime.now().millisecondsSinceEpoch}',
+                title:
+                    '⚠️ ${failed.length} sale(s) failed to sync - will retry',
+                type: TerminalNotificationType.warning,
+                createdAt: DateTime.now(),
+              ),
+            );
       }
-      
+
       state = state.copyWith(
         syncing: false,
         hasPendingSales: remaining > 0,
@@ -172,30 +181,26 @@ class OfflineSyncService extends Notifier<SyncState> {
             : null,
       );
     } catch (e) {
-      ErrorLogger.logBusinessError(
-        'OfflineSync',
-        'Sync batch failed: $e',
-      );
-      
+      ErrorLogger.logBusinessError('OfflineSync', 'Sync batch failed: $e');
+
       // Add notification for sync error
-      ref.read(terminalNotificationsProvider.notifier).add(
-        TerminalNotificationItem(
-          id: 'sync_error_${DateTime.now().millisecondsSinceEpoch}',
-          title: '❌ Sync failed: ${e.toString().split(':').last.trim()}',
-          type: TerminalNotificationType.error,
-          createdAt: DateTime.now(),
-        ),
-      );
-      
-      state = state.copyWith(
-        syncing: false,
-        lastError: e.toString(),
-      );
+      ref
+          .read(terminalNotificationsProvider.notifier)
+          .add(
+            TerminalNotificationItem(
+              id: 'sync_error_${DateTime.now().millisecondsSinceEpoch}',
+              title: '❌ Sync failed: ${e.toString().split(':').last.trim()}',
+              type: TerminalNotificationType.error,
+              createdAt: DateTime.now(),
+            ),
+          );
+
+      state = state.copyWith(syncing: false, lastError: e.toString());
     }
   }
 
   Future<void> clearPendingSales() async {
-    await _db.clearSyncedSales();
+    await _db.clearAllSales();
     state = const SyncState.initial();
   }
 }

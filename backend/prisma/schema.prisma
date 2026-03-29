@@ -145,11 +145,12 @@ model Product {
   id         String @id @default(uuid())
   merchantId String
 
-  name    String
-  sku     String?
-  barcode String?
+  name     String
+  category String @default("Uncategorized")
+  sku      String?
+  barcode  String?
   imageUrl String?
-  price   Float
+  price    Float
 
   isDeleted Boolean  @default(false)
   createdAt DateTime @default(now())

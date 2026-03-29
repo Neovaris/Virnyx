@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/providers/user_provider.dart';
+import '../../auth/providers/merchant_settings_provider.dart';
 import '../../sales/offline/offline_sync_service.dart';
 import '../../sales/search/clear_search_signal.dart';
 import '../../sales/search/scan_event.dart';
@@ -96,6 +97,7 @@ class _TerminalTopStripState extends ConsumerState<TerminalTopStrip> {
     final userAsync = ref.watch(userProvider);
     final notifications = ref.watch(terminalNotificationsProvider);
     final unreadCount = notifications.where((item) => !item.read).length;
+    final merchantSettings = ref.watch(merchantSettingsProvider);
 
     return Container(
       height: 60,
@@ -129,9 +131,9 @@ class _TerminalTopStripState extends ConsumerState<TerminalTopStrip> {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: Colors.white.withOpacity(0.10)),
                 ),
-                child: const Text(
-                  'PERSONAL',
-                  style: TextStyle(
+                child: Text(
+                  merchantSettings.storeName.toUpperCase(),
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,

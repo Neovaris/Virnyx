@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 type Props = { open: boolean; onClose: () => void };
 
 const nav = [
-  { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/", label: "Dashboard" },
+  { href: "/dashboard", label: "Analytics" },
   { href: "/products", label: "Products" },
   { href: "/inventory", label: "Inventory" },
   { href: "/sales", label: "Sales" },

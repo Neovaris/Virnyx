@@ -185,7 +185,7 @@ class TerminalTroubleshootDialog extends ConsumerWidget {
 
                             try {
                               final db = ref.read(offlineDbProvider);
-                              await db.clearSyncedSales();
+                              await db.clearAllSales();
 
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +239,7 @@ class TerminalTroubleshootDialog extends ConsumerWidget {
                             try {
                               // Clear everything
                               final db = ref.read(offlineDbProvider);
-                              await db.clearSyncedSales();
+                              await db.clearAllSales();
 
                               ref.read(cartProvider.notifier).clear();
 

@@ -8,6 +8,9 @@ import '../data/auth_api.dart';
 import 'merchant_settings_provider.dart';
 import '../../shift/providers/shift_controller.dart';
 import '../../shift/data/shift_api.dart';
+import '../../sales/offline/offline_sync_service.dart';
+import '../../sales/catalog/catalog_provider.dart';
+import '../../inventory/inventory_provider.dart';
 
 class AuthState {
   final bool initialized;
@@ -150,6 +153,10 @@ class AuthController extends Notifier<AuthState> {
       // Load merchant settings after successful login
       await ref.read(merchantSettingsProvider.notifier).loadSettings();
 
+      // Refresh product catalog and inventory for new merchant
+      await ref.read(catalogProvider.notifier).refresh();
+      await ref.read(inventoryProvider.notifier).refresh();
+
       // Auto-fetch current shift session if any exists
       try {
         final shiftApi = ShiftApi(ref);
@@ -181,6 +188,15 @@ class AuthController extends Notifier<AuthState> {
   Future<void> logout() async {
     await _store.clear();
     _api.token = null;
+
+    // Clear the offline sync queue for the old merchant
+    final syncService = ref.read(offlineSyncProvider.notifier);
+    await syncService.clearPendingSales();
+
+    // Clear cached merchant-specific data
+    ref.invalidate(catalogProvider);
+    ref.invalidate(inventoryProvider);
+
     state = const AuthState.loggedOut(initialized: true, loading: false);
   }
 }
