@@ -1,8 +1,8 @@
 // lib/features/auth/providers/merchant_settings_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
-import '../../../core/api/api_config.dart';
 import '../models/merchant_settings.dart';
+import '../../../core/api/api_provider.dart';
 import 'auth_provider.dart';
 
 final merchantSettingsProvider =
@@ -28,7 +28,7 @@ class MerchantSettingsNotifier extends Notifier<MerchantSettings> {
         return;
       }
 
-      final client = ApiClient(baseUrl: ApiConfig.baseUrl, token: token);
+      final client = ref.read(apiProvider);
 
       // Fetch all settings in parallel
       final responses = await Future.wait([
