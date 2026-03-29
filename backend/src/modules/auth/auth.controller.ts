@@ -7,7 +7,10 @@ const ALL_PERMISSIONS = [
   { key: "users:read", description: "View users" },
   { key: "users:write", description: "Create, update, delete users" },
   { key: "discounts:read", description: "View discount rules" },
-  { key: "discounts:write", description: "Create, update, delete discount rules" },
+  {
+    key: "discounts:write",
+    description: "Create, update, delete discount rules",
+  },
   { key: "settings:read", description: "View merchant settings" },
   { key: "settings:write", description: "Update merchant settings" },
   { key: "sales:read", description: "View sales" },
@@ -159,36 +162,34 @@ export async function registerMerchantHandler(
   const roles = await createRolesForMerchant(merchant.id);
 
   // Create store and user in a transaction
-  const { user } = await prisma.$transaction(
-    async (tx) => {
-      const store = await tx.store.create({
-        data: {
-          name: storeName,
-          merchantId: merchant.id,
-        },
-      });
+  const { user } = await prisma.$transaction(async (tx) => {
+    const store = await tx.store.create({
+      data: {
+        name: storeName,
+        merchantId: merchant.id,
+      },
+    });
 
-      const user = await tx.user.create({
-        data: {
-          fullName,
-          email,
-          passwordHash,
-          merchantId: merchant.id,
-          storeId: store.id,
-        },
-      });
+    const user = await tx.user.create({
+      data: {
+        fullName,
+        email,
+        passwordHash,
+        merchantId: merchant.id,
+        storeId: store.id,
+      },
+    });
 
-      // Assign user to ADMIN role
-      await tx.userRole.create({
-        data: {
-          userId: user.id,
-          roleId: roles.ADMIN.id,
-        },
-      });
+    // Assign user to ADMIN role
+    await tx.userRole.create({
+      data: {
+        userId: user.id,
+        roleId: roles.ADMIN.id,
+      },
+    });
 
-      return { user };
-    },
-  );
+    return { user };
+  });
 
   return reply.code(201).send({
     message: "Merchant registered successfully",
@@ -213,8 +214,9 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
 
   // Verify user has merchantId
   if (!user.merchantId) {
-    return reply.code(400).send({ 
-      message: "User account is missing merchant association. Please contact support." 
+    return reply.code(400).send({
+      message:
+        "User account is missing merchant association. Please contact support.",
     });
   }
 
@@ -260,6 +262,10 @@ export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
       createdAt: true,
       lastLoginAt: true,
 
+      store: {
+        select: { name: true },
+      },
+
       userRoles: {
         select: {
           role: {
@@ -295,8 +301,12 @@ export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
     ),
   ).sort();
 
-  // keep same user payload shape you already return
-  const { userRoles, ...user } = userWithRoles;
+  const { userRoles, store, ...userBase } = userWithRoles;
+  const user = {
+    ...userBase,
+    storeName: store?.name || null,
+  };
 
   return reply.send({ user, roles, permissions });
 }
+
