@@ -10,6 +10,7 @@ import '../../shift/providers/shift_controller.dart';
 import '../../shift/data/shift_api.dart';
 import '../../sales/offline/offline_sync_service.dart';
 import '../../sales/catalog/catalog_provider.dart';
+import '../../sales/cart/cart_controller.dart';
 import '../../inventory/inventory_provider.dart';
 
 class AuthState {
@@ -188,17 +189,26 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Clear local auth artifacts first.
     await _store.clear();
     _api.token = null;
+
+    // Ensure shift state is always reset, even when logout is triggered from
+    // screens that are not shift-aware.
+    await ref.read(shiftProvider.notifier).closeShift();
+
+    // Clear in-memory cart/session data.
+    ref.read(cartProvider.notifier).clear();
 
     // Clear the offline sync queue for the old merchant
     final syncService = ref.read(offlineSyncProvider.notifier);
     await syncService.clearPendingSales();
 
     // Clear cached merchant-specific data
+    ref.read(merchantSettingsProvider.notifier).stopPeriodicRefresh();
     ref.invalidate(catalogProvider);
     ref.invalidate(inventoryProvider);
-    ref.read(merchantSettingsProvider.notifier).stopPeriodicRefresh();
+    ref.invalidate(merchantSettingsProvider);
 
     state = const AuthState.loggedOut(initialized: true, loading: false);
   }
