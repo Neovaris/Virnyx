@@ -11,6 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 //<<<=== models =====>>>
@@ -476,7 +477,6 @@ model NotificationSettings {
   
   // Stock notifications
   sendLowStockAlerts        Boolean @default(true)
-  lowStockThreshold         Int     @default(10)
   sendOutOfStockAlerts      Boolean @default(true)
   
   // Sales notifications
@@ -719,7 +719,6 @@ model SalesSettings {
   // Inventory
   allowNegativeStock          Boolean @default(false)
   warnLowStock                Boolean @default(true)
-  lowStockThreshold           Int     @default(10)
   autoReorderPoint            Int     @default(0) // 0 = disabled
   
   // Pricing and rounding

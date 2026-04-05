@@ -184,7 +184,7 @@ class SaleDetailsScreen extends ConsumerWidget {
                                           if (settings.showQuantity)
                                             '${l.qty} ×',
                                           if (settings.showUnitPrice)
-                                            '₵ ${l.unitPrice.toStringAsFixed(2)}',
+                                            '${settings.currency} ${l.unitPrice.toStringAsFixed(2)}',
                                         ].join(' '),
                                         style: const TextStyle(
                                           color: Colors.black54,
@@ -196,7 +196,7 @@ class SaleDetailsScreen extends ConsumerWidget {
                               if (settings.showLineTotal) ...[
                                 const SizedBox(width: 12),
                                 Text(
-                                  '₵ ${l.lineTotal.toStringAsFixed(2)}',
+                                  '${settings.currency} ${l.lineTotal.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -213,13 +213,19 @@ class SaleDetailsScreen extends ConsumerWidget {
 
                     // Totals based on settings
                     if (settings.displaySubtotal)
-                      _row('Subtotal', '₵ ${s.subtotal.toStringAsFixed(2)}'),
+                      _row(
+                        'Subtotal',
+                        '${settings.currency} ${s.subtotal.toStringAsFixed(2)}',
+                      ),
                     if (settings.displayTaxBreakdown)
-                      _row('Tax', '₵ ${s.tax.toStringAsFixed(2)}'),
+                      _row(
+                        'Tax',
+                        '${settings.currency} ${s.tax.toStringAsFixed(2)}',
+                      ),
                     if (settings.displayTotal)
                       _row(
                         'Total',
-                        '₵ ${s.total.toStringAsFixed(2)}',
+                        '${settings.currency} ${s.total.toStringAsFixed(2)}',
                         bold: true,
                       ),
 
@@ -229,12 +235,12 @@ class SaleDetailsScreen extends ConsumerWidget {
                       const SizedBox(height: 10),
                       _row(
                         'Tendered',
-                        '₵ ${(s.tendered ?? 0).toStringAsFixed(2)}',
+                        '${settings.currency} ${(s.tendered ?? 0).toStringAsFixed(2)}',
                       ),
                       if (settings.displayChangeDue)
                         _row(
                           'Change',
-                          '₵ ${(s.change ?? 0).toStringAsFixed(2)}',
+                          '${settings.currency} ${(s.change ?? 0).toStringAsFixed(2)}',
                         ),
                     ],
 
@@ -247,6 +253,8 @@ class SaleDetailsScreen extends ConsumerWidget {
                       child: Text(
                         (settings.customFooter ?? '').isNotEmpty
                             ? settings.customFooter!
+                            : (settings.receiptFooter ?? '').isNotEmpty
+                            ? settings.receiptFooter!
                             : 'Thank you for your purchase',
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontWeight: FontWeight.w700),
@@ -336,10 +344,8 @@ class SaleDetailsScreen extends ConsumerWidget {
                     onPressed: () async {
                       final reason = await showDialog<String>(
                         context: context,
-                        builder: (ctx) => _RefundRequestDialog(
-                          saleId: s.id,
-                          total: s.total,
-                        ),
+                        builder: (ctx) =>
+                            _RefundRequestDialog(saleId: s.id, total: s.total),
                       );
 
                       if (reason != null && context.mounted) {
@@ -557,10 +563,7 @@ class _RefundRequestDialog extends StatefulWidget {
   final String saleId;
   final double total;
 
-  const _RefundRequestDialog({
-    required this.saleId,
-    required this.total,
-  });
+  const _RefundRequestDialog({required this.saleId, required this.total});
 
   @override
   State<_RefundRequestDialog> createState() => _RefundRequestDialogState();
@@ -595,15 +598,14 @@ class _RefundRequestDialogState extends State<_RefundRequestDialog> {
           children: [
             Text(
               'Sale Total: ₵ ${widget.total.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: amountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Refund Amount',
                 prefixText: '₵ ',

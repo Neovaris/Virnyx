@@ -86,13 +86,10 @@ final refundAutoRefreshProvider = StreamProvider.family<RefundStatus?, String>((
 
 class SalesApi {
   final Ref ref;
-  late final ApiClient _client;
+  final ApiClient _client;
   late final OfflineDb _db;
 
-  SalesApi(this.ref) {
-    _client = ref.read(apiProvider);
-    _db = OfflineDb();
-  }
+  SalesApi(this.ref) : _client = ref.read(apiProvider), _db = OfflineDb();
 
   Future<Sale> createSale({
     required PaymentMethod method,

@@ -37,6 +37,11 @@ class ReceiptSettings {
   final bool printQRCode;
   final bool enableEmailReceipt;
   final bool enableSMSReceipt;
+  // Merchant-level settings
+  final bool taxEnabled;
+  final double taxRate;
+  final String? receiptFooter;
+  final String currency;
 
   ReceiptSettings({
     required this.id,
@@ -71,6 +76,10 @@ class ReceiptSettings {
     this.printQRCode = false,
     this.enableEmailReceipt = false,
     this.enableSMSReceipt = false,
+    this.taxEnabled = false,
+    this.taxRate = 0,
+    this.receiptFooter,
+    this.currency = '₵',
   });
 
   factory ReceiptSettings.fromJson(Map<String, dynamic> json) {
@@ -78,6 +87,10 @@ class ReceiptSettings {
     final storeName = (json['storeName'] ?? 'Sales Receipt') as String;
     final receiptWidth = (json['receiptWidth'] ?? '80MM') as String;
     final printerType = (json['printerType'] ?? 'THERMAL') as String;
+    final currency = (json['currency'] ?? '₵') as String;
+    final taxRate = (json['taxRate'] ?? 0) is int
+        ? (json['taxRate'] as int).toDouble()
+        : (json['taxRate'] ?? 0) as double;
 
     return ReceiptSettings(
       id: json['id'] as String,
@@ -112,6 +125,10 @@ class ReceiptSettings {
       printQRCode: json['printQRCode'] as bool? ?? false,
       enableEmailReceipt: json['enableEmailReceipt'] as bool? ?? false,
       enableSMSReceipt: json['enableSMSReceipt'] as bool? ?? false,
+      taxEnabled: json['taxEnabled'] as bool? ?? false,
+      taxRate: taxRate,
+      receiptFooter: json['receiptFooter'] as String?,
+      currency: currency,
     );
   }
 
@@ -296,7 +313,11 @@ final settingsApiProvider = Provider((ref) {
 });
 
 // Receipt Settings Provider (Async)
-final receiptSettingsProvider = FutureProvider<ReceiptSettings>((ref) async {
+// autoDispose so it re-fetches from the backend each time a receipt screen
+// is opened, ensuring admin-panel changes are reflected without a restart.
+final receiptSettingsProvider = FutureProvider.autoDispose<ReceiptSettings>((
+  ref,
+) async {
   final api = ref.watch(settingsApiProvider);
   return api.getReceiptSettings();
 });

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "receiptNo is required" }, { status: 400 });
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   // We don't have /sales/by-receipt, so we use your report list for a date (fast).
   // If date isn't provided, we try today + yesterday.
   const datesToTry = date
@@ -31,9 +31,11 @@ export async function GET(req: Request) {
 
     if (!res.ok) continue;
 
-    const body = await res.json().catch(() => ({}));
-    const items = Array.isArray(body?.items) ? body.items : [];
-    const hit = items.find((x: any) => String(x?.receiptNo) === receiptNo);
+    const body = await res.json().catch(() => ({} as { items?: unknown }));
+    const items = Array.isArray(body?.items)
+      ? (body.items as Array<{ id?: unknown; receiptNo?: unknown }>)
+      : [];
+    const hit = items.find((x) => String(x?.receiptNo) === receiptNo);
 
     if (hit?.id) return NextResponse.json({ saleId: hit.id, receiptNo }, { status: 200 });
   }

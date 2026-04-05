@@ -1,8 +1,8 @@
-/* eslint-disable jsx-a11y/role-has-required-aria-props */
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Guard from "@/components/admin/Guard";
+import { SkeletonSettings } from "@/components/admin/SkeletonLoader";
 import Image from "next/image";
 
 type Merchant = {
@@ -75,7 +75,6 @@ type ShiftManagement = {
 type Notifications = {
   id: string;
   sendLowStockAlerts: boolean;
-  lowStockThreshold: number;
   sendOutOfStockAlerts: boolean;
   enableEndOfDayReport: boolean;
   endOfDayReportTime: string;
@@ -169,7 +168,6 @@ type Sales = {
   id: string;
   allowNegativeStock: boolean;
   warnLowStock: boolean;
-  lowStockThreshold: number;
   autoReorderPoint: number;
   priceRoundingMethod: string;
   enableDiscountApproval: boolean;
@@ -218,7 +216,7 @@ type Tax = {
   pricesIncludeTax: boolean;
 };
 
-const num = (v: any, fb = 0) => {
+const num = (v: unknown, fb = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : fb;
 };
@@ -259,6 +257,21 @@ export default function SettingsPage() {
   const [intg, setINT] = useState<Integration | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
 
+  const applyLoadedSettings = useCallback((data: Record<string, unknown>[]) => {
+    setMerchant((data[0]?.merchant as Merchant | undefined) ?? null);
+    setStore((data[1]?.store as Store | undefined) ?? null);
+    setTax((data[2]?.tax as Tax | undefined) ?? null);
+    setPM((data[3]?.paymentMethods as PaymentMethods | undefined) ?? null);
+    setRP((data[4]?.refundPolicy as RefundPolicy | undefined) ?? null);
+    setSM((data[5]?.shiftManagement as ShiftManagement | undefined) ?? null);
+    setNT((data[6]?.notifications as Notifications | undefined) ?? null);
+    setSEC((data[7]?.security as Security | undefined) ?? null);
+    setBAK((data[8]?.backup as Backup | undefined) ?? null);
+    setREC((data[9]?.receipt as Receipt | undefined) ?? null);
+    setSAL((data[10]?.sales as Sales | undefined) ?? null);
+    setINT((data[11]?.integration as Integration | undefined) ?? null);
+  }, []);
+
   const uploadReceiptLogo = async (file: File) => {
     setLogoUploading(true);
     setErr(null);
@@ -279,17 +292,25 @@ export default function SettingsPage() {
         setREC({ ...rec!, logoUrl: body.url });
         setMsg("Logo uploaded successfully");
       }
-    } catch (e: any) {
-      setErr(e?.message || "Upload failed");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setLogoUploading(false);
     }
   };
 
-  const load = async () => {
-    setLoading(true);
-    setErr(null);
-    setMsg(null);
+  const load = useCallback(async (
+    options: { showLoading?: boolean; clearStatus?: boolean } = {},
+  ) => {
+    const { showLoading = true, clearStatus = true } = options;
+
+    if (showLoading) {
+      setLoading(true);
+    }
+    if (clearStatus) {
+      setErr(null);
+      setMsg(null);
+    }
 
     try {
       const res = await Promise.all([
@@ -347,34 +368,25 @@ export default function SettingsPage() {
         res.map((r) => r.json().catch(() => ({}))),
       );
 
-      setMerchant(data[0].merchant ?? null);
-      setStore(data[1].store ?? null);
-      setTax(data[2].tax ?? null);
-      setPM(data[3].paymentMethods ?? null);
-      setRP(data[4].refundPolicy ?? null);
-      setSM(data[5].shiftManagement ?? null);
-      setNT(data[6].notifications ?? null);
-      setSEC(data[7].security ?? null);
-      setBAK(data[8].backup ?? null);
-      setREC(data[9].receipt ?? null);
-      setSAL(data[10].sales ?? null);
-      setINT(data[11].integration ?? null);
-    } catch (e: any) {
-      setErr(e?.message || "Load failed");
+      applyLoadedSettings(data as Record<string, unknown>[]);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Load failed");
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, [applyLoadedSettings]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
-  const save = async (
+  const save = async <T,>(
     endpoint: string,
-    data: any,
+    data: T,
     key: string,
-    setter: any,
+    setter: (value: T | null) => void,
   ) => {
     setSaving(true);
     setErr(null);
@@ -391,10 +403,14 @@ export default function SettingsPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.message || "Save failed");
 
-      setter(body[key] ?? null);
+      const typedBody = body as Record<string, unknown>;
+      setter((typedBody[key] as T | undefined) ?? null);
       setMsg("Saved successfully.");
-    } catch (e: any) {
-      setErr(e?.message || "Save failed");
+
+      // Refresh the rest of the settings without blanking the page state.
+      await load({ showLoading: false, clearStatus: false });
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -408,11 +424,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <Guard perm="settings:read">
-        <div className="space-y-4">
-          <div className="h-8 w-48 animate-pulse rounded-xl bg-slate-800/70" />
-          <div className="h-24 animate-pulse rounded-3xl bg-slate-900/50" />
-          <div className="h-96 animate-pulse rounded-3xl bg-slate-900/40" />
-        </div>
+        <SkeletonSettings />
       </Guard>
     );
   }
@@ -433,7 +445,8 @@ export default function SettingsPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={load}
+              type="button"
+              onClick={() => void load()}
               disabled={loading}
               className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-900/70 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -441,7 +454,6 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
         {err && (
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center gap-2">
             <svg
@@ -458,7 +470,6 @@ export default function SettingsPage() {
             <span>{err}</span>
           </div>
         )}
-
         {msg && (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex items-center gap-2">
             <svg
@@ -475,7 +486,6 @@ export default function SettingsPage() {
             <span>{msg}</span>
           </div>
         )}
-
         <div className="space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Configuration Sections
@@ -497,7 +507,6 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
-
         {tab === "basic" && merchant && (
           <Sec
             title="Merchant Profile"
@@ -542,7 +551,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "store" && store && (
           <Sec
             title="Store Settings"
@@ -581,7 +589,10 @@ export default function SettingsPage() {
                 />
               </Field>
 
-              <Field label="Low stock threshold">
+              <Field
+                label="Store low stock threshold"
+                hint="Saved on the store record and used as the default inventory threshold for this store."
+              >
                 <Input
                   type="number"
                   value={store.lowStockThreshold}
@@ -621,7 +632,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "tax" && tax && (
           <Sec
             title="Tax Rules"
@@ -669,7 +679,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "payment-methods" && pm && (
           <Sec
             title="Payment Methods"
@@ -768,7 +777,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "refund-policy" && rp && (
           <Sec
             title="Refund Policy"
@@ -902,7 +910,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "shift-management" && sm && (
           <Sec
             title="Shift Management"
@@ -1066,7 +1073,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "notifications" && nt && (
           <Sec
             title="Alerts & Notifications"
@@ -1089,22 +1095,8 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="mt-4">
-                  <Field label="Low stock threshold">
-                    <Input
-                      type="number"
-                      value={nt.lowStockThreshold}
-                      onChange={(e) =>
-                        setNT({
-                          ...nt,
-                          lowStockThreshold: Math.max(
-                            0,
-                            Math.trunc(num(e, 10)),
-                          ),
-                        })
-                      }
-                    />
-                  </Field>
+                <div className="mt-4 text-xs text-slate-500">
+                  Uses Store low stock threshold to trigger alerts.
                 </div>
               </SubSec>
 
@@ -1209,7 +1201,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "security" && sec && (
           <Sec
             title="Security"
@@ -1430,7 +1421,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "backup" && bak && (
           <Sec
             title="Backup"
@@ -1589,7 +1579,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "receipt" && rec && merchant && store && (
           <Sec
             title="Receipt Template"
@@ -2139,7 +2128,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "sales" && sal && (
           <Sec
             title="Sales Behavior"
@@ -2150,21 +2138,9 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <SubSec title="Thresholds & Numbering">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Low stock threshold">
-                    <Input
-                      type="number"
-                      value={sal.lowStockThreshold}
-                      onChange={(e) =>
-                        setSAL({
-                          ...sal,
-                          lowStockThreshold: Math.max(
-                            0,
-                            Math.trunc(num(e, 10)),
-                          ),
-                        })
-                      }
-                    />
-                  </Field>
+                  <div className="text-xs text-slate-500 md:col-span-2">
+                    Low stock threshold is controlled in Store Settings and saved on the store record, not the sales settings record.
+                  </div>
 
                   <Field label="Max discount (%)">
                     <Input
@@ -2387,7 +2363,6 @@ export default function SettingsPage() {
             </div>
           </Sec>
         )}
-
         {tab === "integration" && intg && (
           <Sec
             title="Integrations"
@@ -2587,6 +2562,7 @@ function Sec({
           {onSave ? (
             <Guard perm="settings:write">
               <button
+                type="button"
                 disabled={saving}
                 onClick={onSave}
                 className={[
@@ -2703,7 +2679,11 @@ function Input({
 }) {
   const [showPassword, setShowPassword] = React.useState(false);
   const isPasswordField = type === "password";
-  const inputType = isPasswordField ? (showPassword ? "text" : "password") : type;
+  const inputType = isPasswordField
+    ? showPassword
+      ? "text"
+      : "password"
+    : type;
 
   return (
     <div className="relative w-full">
@@ -2830,14 +2810,17 @@ function Toggle({
   disabled?: boolean;
   hint?: string;
 }) {
-  /** @ts-ignore */
   // eslint-disable no-unescaped-entities, jsx-a11y/no-static-element-interactions
-  const switchProps = {
-    role: "switch" as const,
+  const switchProps: {
+    role: "switch";
+    "aria-checked": boolean;
+    "aria-disabled"?: boolean;
+  } = {
+    role: "switch",
     "aria-checked": checked,
     "aria-disabled": disabled,
-  } as any;
-  
+  };
+
   return (
     <div
       {...switchProps}
@@ -2880,9 +2863,7 @@ function Toggle({
         <div
           className={[
             "absolute top-1/2 left-0.5 h-5 w-5 -translate-y-1/2 rounded-full transition-transform",
-            checked
-              ? "translate-x-5 bg-indigo-50"
-              : "bg-slate-300",
+            checked ? "translate-x-5 bg-indigo-50" : "bg-slate-300",
           ].join(" ")}
         />
       </div>

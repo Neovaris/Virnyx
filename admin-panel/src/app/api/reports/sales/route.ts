@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const page = url.searchParams.get("page") || "1";
   const limit = url.searchParams.get("limit") || "10";
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const res = await fetch(
     `${apiBase}/reports/sales?date=${encodeURIComponent(date)}&status=${encodeURIComponent(
       status

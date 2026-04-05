@@ -7,7 +7,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/inventory/stock-out`, {
     method: "POST",
     headers: {

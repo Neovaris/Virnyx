@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Guard from "@/components/admin/Guard";
+import { SkeletonProducts } from "@/components/admin/SkeletonLoader";
 
 type Product = {
   id: string;
@@ -147,7 +148,14 @@ export default function ProductsPage() {
     if (!name) return setErr("Name is required");
     if (!Number.isFinite(priceNum) || priceNum < 0) return setErr("Price must be a number >= 0");
 
-    const payload: any = {
+    const payload: {
+      name: string;
+      category: string;
+      price: number;
+      sku?: string;
+      barcode?: string;
+      imageUrl?: string;
+    } = {
       name,
       category: form.category.trim() || "Uncategorized",
       price: priceNum,
@@ -256,8 +264,8 @@ export default function ProductsPage() {
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400\" colSpan={8}>
-                      Loading products...
+                    <td className="px-4 py-0" colSpan={8}>
+                      <SkeletonProducts />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (

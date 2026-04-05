@@ -64,30 +64,6 @@ class TerminalProfileMenu extends ConsumerWidget {
                 },
               ),
               _MenuDivider(),
-              Consumer(
-                builder: (context, ref, child) {
-                  final shift = ref.watch(shiftProvider);
-                  final isShiftActive = shift.active;
-
-                  return _ProfileMenuItem(
-                    label: 'Logout',
-                    icon: Icons.logout_outlined,
-                    destructive: true,
-                    enabled: !isShiftActive,
-                    tooltip: isShiftActive ? 'Close shift before logout' : null,
-                    onTap: isShiftActive
-                        ? null
-                        : () {
-                            Future.microtask(() async {
-                              ref.read(authProvider.notifier).logout();
-                              if (context.mounted) {
-                                context.go('/login');
-                              }
-                            });
-                          },
-                  );
-                },
-              ),
             ],
           ),
         ),

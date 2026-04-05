@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const sort = url.searchParams.get("sort") || "createdAt";
   const order = url.searchParams.get("order") || "desc";
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(
     `${apiBase}/products?q=${encodeURIComponent(q)}&page=${encodeURIComponent(
       page
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/products`, {
     method: "POST",
     headers: {

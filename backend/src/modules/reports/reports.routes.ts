@@ -400,7 +400,18 @@ export async function reportsRoutes(app: FastifyInstance) {
       if (!storeId)
         return reply.code(400).send({ message: "User has no storeId" });
 
-      const threshold = Number((req.query as any).threshold ?? 10);
+      const store = await prisma.store.findFirst({
+        where: { id: storeId, merchantId },
+        select: { lowStockThreshold: true },
+      });
+
+      if (!store)
+        return reply.code(404).send({ message: "Store not found" });
+
+      const queryThreshold = (req.query as any).threshold;
+      const threshold = Number(
+        queryThreshold ?? store.lowStockThreshold ?? 10,
+      );
       const limit = Math.min(
         Math.max(Number((req.query as any).limit ?? 20), 1),
         100,
@@ -455,6 +466,14 @@ export async function reportsRoutes(app: FastifyInstance) {
       const { merchantId, storeId } = req.user;
       if (!storeId)
         return reply.code(400).send({ message: "User has no storeId" });
+
+      const store = await prisma.store.findFirst({
+        where: { id: storeId, merchantId },
+        select: { lowStockThreshold: true },
+      });
+
+      if (!store)
+        return reply.code(404).send({ message: "Store not found" });
 
       const date =
         ((req.query as any).date as string) ||
@@ -765,6 +784,15 @@ export async function reportsRoutes(app: FastifyInstance) {
             : (uMap.get(c.cashierId)?.fullName ?? "Unknown"),
       }));
 
+      // Count active shifts for this store
+      const activeShiftsCount = await prisma.shiftSession.count({
+        where: {
+          storeId,
+          merchantId,
+          closedAt: null, // null closedAt means still open/active
+        },
+      });
+
       return {
         today: {
           sales: todayTransactions,
@@ -788,6 +816,7 @@ export async function reportsRoutes(app: FastifyInstance) {
           sales: c.sales,
           revenue: c.revenue,
         })),
+        activeShifts: activeShiftsCount,
       };
     },
   );
@@ -810,6 +839,14 @@ export async function reportsRoutes(app: FastifyInstance) {
       if (!storeId)
         return reply.code(400).send({ message: "User has no storeId" });
 
+      const store = await prisma.store.findFirst({
+        where: { id: storeId, merchantId },
+        select: { lowStockThreshold: true },
+      });
+
+      if (!store)
+        return reply.code(404).send({ message: "Store not found" });
+
       // Get all products and calculate current stock levels
       const products = await prisma.product.findMany({
         where: { merchantId, isDeleted: false },
@@ -827,7 +864,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         stockLedger.map((s) => [s.productId, s._sum.qtyChange ?? 0]),
       );
 
-      const inventoryThreshold = 10; // Default low stock threshold
+      const inventoryThreshold = store.lowStockThreshold ?? 10;
 
       let totalItems = 0;
       let totalValue = 0;

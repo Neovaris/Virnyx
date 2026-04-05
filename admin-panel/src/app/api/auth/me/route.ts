@@ -14,7 +14,7 @@ export async function GET() {
     return NextResponse.json({ message: "No token" }, { status: 401 });
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   
   console.log("[Frontend /api/auth/me] Calling backend", { apiBase });
   

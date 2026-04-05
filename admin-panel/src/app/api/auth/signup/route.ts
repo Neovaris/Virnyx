@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+    const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
 
     const res = await fetch(`${apiBase}/auth/signup`, {
       method: "POST",
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Signup failed" },
       { status: 500 }

@@ -109,6 +109,7 @@ class AuthController extends Notifier<AuthState> {
 
       // Load merchant settings after successful session restore
       await ref.read(merchantSettingsProvider.notifier).loadSettings();
+      ref.read(merchantSettingsProvider.notifier).startPeriodicRefresh();
     } catch (_) {
       await _store.clear();
       _api.token = null;
@@ -152,6 +153,7 @@ class AuthController extends Notifier<AuthState> {
 
       // Load merchant settings after successful login
       await ref.read(merchantSettingsProvider.notifier).loadSettings();
+      ref.read(merchantSettingsProvider.notifier).startPeriodicRefresh();
 
       // Refresh product catalog and inventory for new merchant
       await ref.read(catalogProvider.notifier).refresh();
@@ -196,6 +198,7 @@ class AuthController extends Notifier<AuthState> {
     // Clear cached merchant-specific data
     ref.invalidate(catalogProvider);
     ref.invalidate(inventoryProvider);
+    ref.read(merchantSettingsProvider.notifier).stopPeriodicRefresh();
 
     state = const AuthState.loggedOut(initialized: true, loading: false);
   }

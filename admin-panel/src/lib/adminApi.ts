@@ -41,6 +41,7 @@ export interface DashboardMetrics {
     sales: number;
     revenue: number;
   }>;
+  activeShifts: number;
 }
 
 export interface InventoryMetrics {
@@ -48,6 +49,33 @@ export interface InventoryMetrics {
   totalValue: number;
   lowStockItems: number;
   outOfStockItems: number;
+}
+
+export interface RefundRecord {
+  id: string;
+  saleId: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+}
+
+export interface RefundListResponse {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+  items: RefundRecord[];
+}
+
+export interface PendingRefundsResponse {
+  items: RefundRecord[];
+  total: number;
+}
+
+export interface StoreSettingsResponse {
+  [key: string]: unknown;
 }
 
 class AdminApi {
@@ -86,22 +114,22 @@ class AdminApi {
     limit?: number;
     from?: string;
     to?: string;
-  }): Promise<any> {
+  }): Promise<RefundListResponse> {
     const response = await apiClient.get('/refunds', { params });
     return response.data;
   }
 
-  async getPendingRefunds(): Promise<any> {
+  async getPendingRefunds(): Promise<PendingRefundsResponse> {
     const response = await apiClient.get('/refunds/pending-approvals');
     return response.data;
   }
 
-  async approveRefund(refundId: string): Promise<any> {
+  async approveRefund(refundId: string): Promise<RefundRecord> {
     const response = await apiClient.patch(`/refunds/${refundId}/approve`);
     return response.data;
   }
 
-  async rejectRefund(refundId: string, reason?: string): Promise<any> {
+  async rejectRefund(refundId: string, reason?: string): Promise<RefundRecord> {
     const response = await apiClient.patch(`/refunds/${refundId}/reject`, {
       reason,
     });
@@ -111,12 +139,12 @@ class AdminApi {
   // ========================
   // SETTINGS
   // ========================
-  async getStoreSettings(): Promise<any> {
+  async getStoreSettings(): Promise<StoreSettingsResponse> {
     const response = await apiClient.get('/settings');
     return response.data;
   }
 
-  async updateStoreSettings(data: any): Promise<any> {
+  async updateStoreSettings(data: StoreSettingsResponse): Promise<StoreSettingsResponse> {
     const response = await apiClient.patch('/settings', data);
     return response.data;
   }

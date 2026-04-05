@@ -15,14 +15,7 @@ async function readJsonSafe(res: Response) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-    if (!apiBase) {
-      return NextResponse.json(
-        { message: "NEXT_PUBLIC_API_BASE_URL is not configured" },
-        { status: 500 },
-      );
-    }
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 
     const res = await fetch(`${apiBase}/auth/login`, {
       method: "POST",

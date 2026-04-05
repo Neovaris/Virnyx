@@ -53,10 +53,11 @@ export async function POST(req: Request) {
 
     const url = `/uploads/product-images/${filename}`;
     return NextResponse.json({ url }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Product image upload error:", e);
+    const message = e instanceof Error ? e.message : "Upload failed";
     return NextResponse.json(
-      { message: e?.message || "Upload failed" },
+      { message },
       { status: 500 }
     );
   }

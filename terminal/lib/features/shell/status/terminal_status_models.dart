@@ -88,7 +88,7 @@ class TerminalStatusState {
       cashierName: null,
       terminalName: 'Terminal-01',
       storeName: 'Main Store',
-      appVersion: 'v1.0.0',
+      appVersion: 'Demo',
       now: DateTime.now(),
       lastSyncAt: DateTime.now(),
     );

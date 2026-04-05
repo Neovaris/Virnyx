@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PasswordInput } from "@/components/admin/password_input";
 
 // ✅ Generic JSON parser
-async function readJsonSafe<T = any>(res: Response): Promise<T | null> {
+async function readJsonSafe<T = unknown>(res: Response): Promise<T | null> {
   const text = await res.text();
   if (!text.trim()) return null;
 
@@ -29,12 +28,10 @@ type LoginResponse = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,8 +60,7 @@ export default function LoginPage() {
       // 🔥 force full reload so cookie is available to middleware
       window.location.href = "/";
     } catch (e: unknown) {
-      const error = e as any;
-      setErr(error?.message ?? "Login failed");
+      setErr(e instanceof Error ? e.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -109,8 +105,6 @@ export default function LoginPage() {
               placeholder="admin@virnyx.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={() => setFocusedField("email")}
-              onBlur={() => setFocusedField(null)}
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -124,8 +118,6 @@ export default function LoginPage() {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onFocus={() => setFocusedField("password")}
-              onBlur={() => setFocusedField(null)}
               required
             />
           </div>

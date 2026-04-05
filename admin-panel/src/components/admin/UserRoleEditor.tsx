@@ -90,8 +90,8 @@ export default function UserRoleEditor({
 
       // Call callback to refresh user data
       await onChanged?.();
-    } catch (e: any) {
-      setError(e?.message || "An error occurred");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
       setSavingRoleId(null);
     }

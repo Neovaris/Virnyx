@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const limit = url.searchParams.get("limit") || "20";
   const lowStock = url.searchParams.get("lowStock"); // optional
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstreamUrl =
     `${apiBase}/inventory?q=${encodeURIComponent(q)}&page=${encodeURIComponent(
       page

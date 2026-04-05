@@ -2,7 +2,10 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db/prisma";
 import { authGuard } from "../../middlewares/authGuard";
 import { tenantGuard } from "../../middlewares/tenantGuard";
-import { requirePermission } from "../../middlewares/requirePermission";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "../../middlewares/requirePermission";
 
 function asString(v: any) {
   return String(v ?? "").trim();
@@ -600,13 +603,6 @@ export async function settingsRoutes(app: FastifyInstance) {
       const data: any = {};
 
       if (body.sendLowStockAlerts !== undefined) data.sendLowStockAlerts = asBool(body.sendLowStockAlerts);
-      if (body.lowStockThreshold !== undefined) {
-        const n = asInt(body.lowStockThreshold);
-        if (!Number.isFinite(n) || n < 0) {
-          return reply.code(400).send({ message: "lowStockThreshold must be >= 0" });
-        }
-        data.lowStockThreshold = n;
-      }
       if (body.sendOutOfStockAlerts !== undefined) data.sendOutOfStockAlerts = asBool(body.sendOutOfStockAlerts);
 
       if (body.enableEndOfDayReport !== undefined) data.enableEndOfDayReport = asBool(body.enableEndOfDayReport);
@@ -863,9 +859,22 @@ export async function settingsRoutes(app: FastifyInstance) {
   // =========================
   app.get(
     "/settings/receipt",
-    { preHandler: [authGuard, tenantGuard, requirePermission("settings:read")] },
+    {
+      preHandler: [
+        authGuard,
+        tenantGuard,
+        requireAnyPermission(["receipts:read", "settings:read", "sales:read"]),
+      ],
+    },
     async (req, reply) => {
-      const { merchantId } = req.user as any;
+      const { merchantId, sub: userId } = req.user as any;
+
+      // Fetch merchant details first so we can use real name when
+      // initialising receipt settings for the first time.
+      const merchant = await prisma.merchant.findUnique({
+        where: { id: merchantId },
+        select: { name: true, taxEnabled: true, taxRate: true, receiptFooter: true, currency: true },
+      });
 
       let settings = await prisma.receiptSettings.findUnique({
         where: { merchantId },
@@ -873,11 +882,40 @@ export async function settingsRoutes(app: FastifyInstance) {
 
       if (!settings) {
         settings = await prisma.receiptSettings.create({
-          data: { merchantId },
+          data: {
+            merchantId,
+            merchantName: merchant?.name || "VIRNYX POS",
+          },
         });
       }
 
-      return reply.send({ receipt: settings });
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { storeId: true },
+      });
+
+      let storeName = settings.storeName || "Sales Receipt";
+      if (user?.storeId) {
+        const store = await prisma.store.findUnique({
+          where: { id: user.storeId },
+          select: { name: true },
+        });
+        storeName = store?.name || settings.storeName || "Sales Receipt";
+      }
+
+      // Merge actual merchant/store names and tax settings with receipt settings
+      const enrichedSettings = {
+        ...settings,
+        merchantName: settings.merchantName || merchant?.name || "VIRNYX POS",
+        storeName: storeName,
+        // Include merchant tax and footer settings
+        taxEnabled: merchant?.taxEnabled ?? false,
+        taxRate: merchant?.taxRate ?? 0,
+        receiptFooter: merchant?.receiptFooter,
+        currency: merchant?.currency || "₵",
+      };
+
+      return reply.send({ receipt: enrichedSettings });
     }
   );
 
@@ -1227,13 +1265,6 @@ export async function settingsRoutes(app: FastifyInstance) {
 
       if (body.allowNegativeStock !== undefined) data.allowNegativeStock = asBool(body.allowNegativeStock);
       if (body.warnLowStock !== undefined) data.warnLowStock = asBool(body.warnLowStock);
-      if (body.lowStockThreshold !== undefined) {
-        const n = asInt(body.lowStockThreshold);
-        if (!Number.isFinite(n) || n < 0) {
-          return reply.code(400).send({ message: "lowStockThreshold must be >= 0" });
-        }
-        data.lowStockThreshold = n;
-      }
       if (body.autoReorderPoint !== undefined) {
         const n = asInt(body.autoReorderPoint);
         if (!Number.isFinite(n) || n < 0) {

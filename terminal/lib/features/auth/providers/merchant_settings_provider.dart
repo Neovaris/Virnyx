@@ -1,4 +1,5 @@
 // lib/features/auth/providers/merchant_settings_provider.dart
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../models/merchant_settings.dart';
@@ -11,11 +12,32 @@ final merchantSettingsProvider =
     );
 
 class MerchantSettingsNotifier extends Notifier<MerchantSettings> {
+  Timer? _refreshTimer;
+
+  static const Duration _refreshInterval = Duration(minutes: 5);
+
   @override
   MerchantSettings build() {
+    ref.onDispose(() => _refreshTimer?.cancel());
     // Initialize with defaults - settings will be loaded on login
     return MerchantSettings.default_();
   }
+
+  /// Start periodic background refresh. Called after successful login.
+  void startPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(_refreshInterval, (_) => loadSettings());
+  }
+
+  /// Stop periodic background refresh. Called on logout.
+  void stopPeriodicRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  /// Public alias — allows callers to explicitly re-fetch settings
+  /// (e.g., on app foreground resume or manual pull-to-refresh).
+  Future<void> refresh() => loadSettings();
 
   /// Load all merchant settings from backend
   Future<void> loadSettings() async {
@@ -32,12 +54,22 @@ class MerchantSettingsNotifier extends Notifier<MerchantSettings> {
 
       // Fetch all settings in parallel
       final responses = await Future.wait([
-        client.getJson('/settings/merchant').catchError((_) => {}),
-        client.getJson('/settings/store').catchError((_) => {}),
-        client.getJson('/settings/tax').catchError((_) => {}),
-        client.getJson('/settings/payment-methods').catchError((_) => {}),
-        client.getJson('/settings/sales').catchError((_) => {}),
-        client.getJson('/settings/refund-policy').catchError((_) => {}),
+        client
+            .getJson('/settings/merchant')
+            .catchError((_) => <String, dynamic>{}),
+        client
+            .getJson('/settings/store')
+            .catchError((_) => <String, dynamic>{}),
+        client.getJson('/settings/tax').catchError((_) => <String, dynamic>{}),
+        client
+            .getJson('/settings/payment-methods')
+            .catchError((_) => <String, dynamic>{}),
+        client
+            .getJson('/settings/sales')
+            .catchError((_) => <String, dynamic>{}),
+        client
+            .getJson('/settings/refund-policy')
+            .catchError((_) => <String, dynamic>{}),
       ]);
 
       // Combine all responses into a single map

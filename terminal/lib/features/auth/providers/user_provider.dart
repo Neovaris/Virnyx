@@ -12,6 +12,7 @@ class UserData {
   final String role;
   final String? phone;
   final String? storeId;
+  final String? storeName;
 
   const UserData({
     required this.id,
@@ -20,6 +21,7 @@ class UserData {
     required this.role,
     this.phone,
     this.storeId,
+    this.storeName,
   });
 
   String get initials {
@@ -43,13 +45,14 @@ class UserData {
       role: json['role'] ?? 'cashier',
       phone: json['phone'],
       storeId: json['storeId'],
+      storeName: json['storeName'],
     );
   }
 }
 
 final userProvider = FutureProvider<UserData?>((ref) async {
   final authState = ref.watch(authProvider);
-  
+
   // Only fetch if logged in
   if (!authState.loggedIn) {
     return null;
@@ -60,11 +63,9 @@ final userProvider = FutureProvider<UserData?>((ref) async {
     final authApi = AuthApi(apiClient);
     final res = await authApi.me();
 
-    final user = (res['user'] is Map)
-        ? (res['user'] as Map).cast<String, dynamic>()
-        : res.cast<String, dynamic>();
+    final rawUser = (res['user'] as Map).cast<String, dynamic>();
 
-    return UserData.fromJson(user);
+    return UserData.fromJson(rawUser);
   } catch (e) {
     return null;
   }

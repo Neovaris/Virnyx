@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Guard from "@/components/admin/Guard";
 
+
 type SalesList = {
   date: string;
   status: string;
@@ -34,6 +35,10 @@ function addDays(yyyyMmDd: string, deltaDays: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function parseStatus(value: string | null): "COMPLETED" | "VOIDED" {
+  return value === "VOIDED" ? "VOIDED" : "COMPLETED";
+}
+
 export default function SalesPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -42,7 +47,7 @@ export default function SalesPage() {
 
   const [date, setDate] = useState(() => sp.get("date") || today);
   const [status, setStatus] = useState<"COMPLETED" | "VOIDED">(
-    () => (sp.get("status") as any) || "COMPLETED"
+    () => parseStatus(sp.get("status"))
   );
   const [page, setPage] = useState(() => Math.max(Number(sp.get("page") || 1), 1));
   const [limit] = useState(20);
@@ -96,12 +101,12 @@ export default function SalesPage() {
   const total = data?.total ?? 0;
 
   // client-side filter by receiptNo (current page)
-  const itemsRaw = data?.items ?? [];
   const items = useMemo(() => {
-    if (!qDebounced) return itemsRaw;
+    const list = data?.items ?? [];
+    if (!qDebounced) return list;
     const needle = qDebounced.toLowerCase();
-    return itemsRaw.filter((s) => String(s.receiptNo ?? "").toLowerCase().includes(needle));
-  }, [itemsRaw, qDebounced]);
+    return list.filter((s) => String(s.receiptNo ?? "").toLowerCase().includes(needle));
+  }, [data?.items, qDebounced]);
 
   return (
     <Guard perm="sales:read">

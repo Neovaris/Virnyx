@@ -38,11 +38,7 @@ export async function POST(req: Request) {
     }
 
     // Ensure upload directory exists
-    try {
-      await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    } catch (e) {
-      // Directory might already exist, that's fine
-    }
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
     // Generate unique filename
     const ext = file.name.split(".").pop() || "png";
@@ -57,10 +53,11 @@ export async function POST(req: Request) {
     const url = `/uploads/receipt-logos/${filename}`;
 
     return NextResponse.json({ url }, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Upload error:", e);
+    const message = e instanceof Error ? e.message : "Upload failed";
     return NextResponse.json(
-      { message: e?.message || "Upload failed" },
+      { message },
       { status: 500 }
     );
   }

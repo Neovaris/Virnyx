@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Guard from "@/components/admin/Guard";
+import { SkeletonList } from "@/components/admin/SkeletonLoader";
 
 type DiscountRule = {
   id: string;
@@ -187,8 +188,8 @@ export default function DiscountsPage() {
       setOpen(false);
       setForm(defaultForm);
       await fetchList();
-    } catch (e: any) {
-      setErr(e.message || "Something went wrong");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -204,8 +205,9 @@ export default function DiscountsPage() {
       });
       if (!res.ok) throw new Error("Failed to delete");
       await fetchList();
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to delete";
+      alert(`Error: ${message}`);
     }
   };
 
@@ -260,9 +262,7 @@ export default function DiscountsPage() {
           </div>
 
           {loading ? (
-            <div className="py-16 text-center text-sm text-slate-400">
-              Loading discount rules...
-            </div>
+            <SkeletonList />
           ) : items.length === 0 ? (
             <div className="py-20 text-center text-slate-400">
               No discount rules found

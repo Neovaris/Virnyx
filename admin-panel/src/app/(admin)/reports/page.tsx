@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminApi } from '@/lib/adminApi';
+import { adminApi, DashboardMetrics } from '@/lib/adminApi';
+import { SkeletonReports } from '@/components/admin/SkeletonLoader';
 
 export default function ReportsPage() {
-  const [metrics, setMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'year'>(
@@ -17,8 +18,8 @@ export default function ReportsPage() {
     try {
       const data = await adminApi.getDashboardMetrics();
       setMetrics(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch reports');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch reports');
     } finally {
       setLoading(false);
     }
@@ -31,7 +32,7 @@ export default function ReportsPage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'GHS',
       minimumFractionDigits: 2,
     }).format(value);
   };
@@ -88,7 +89,7 @@ export default function ReportsPage() {
       )}
 
       {loading ? (
-        <div className="text-center text-slate-400">Loading reports...</div>
+        <SkeletonReports />
       ) : currentMetrics ? (
         <>
           {/* Key Metrics Cards */}
@@ -188,7 +189,7 @@ export default function ReportsPage() {
                 Top Performing Cashiers
               </h3>
               <div className="space-y-2">
-                {metrics.topCashiers.slice(0, 5).map((cashier: any, idx: number) => (
+                {metrics.topCashiers.slice(0, 5).map((cashier: DashboardMetrics['topCashiers'][number], idx: number) => (
                   <div
                     key={cashier.id}
                     className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg"

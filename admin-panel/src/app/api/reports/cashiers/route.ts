@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const date = url.searchParams.get("date") || new Date().toISOString().slice(0, 10);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const res = await fetch(`${apiBase}/reports/cashiers?date=${encodeURIComponent(date)}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",

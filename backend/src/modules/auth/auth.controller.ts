@@ -25,7 +25,6 @@ const ALL_PERMISSIONS = [
   { key: "refunds:write", description: "Process refunds" },
 ];
 
-// Define permissions for each role
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   ADMIN: [
     "users:read",
@@ -71,7 +70,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
 const DEFAULT_ROLE_NAMES = ["ADMIN", "MANAGER", "CASHIER"] as const;
 
-// Ensure permissions exist in the database (outside transactions)
+// Ensure permissions exist
 async function ensurePermissionsExist() {
   for (const perm of ALL_PERMISSIONS) {
     await prisma.permission.upsert({
@@ -82,17 +81,14 @@ async function ensurePermissionsExist() {
   }
 }
 
-// Create roles for a merchant with proper permission assignments
-// Must be called OUTSIDE of Prisma transactions
+// Create roles + assign permissions
 async function createRolesForMerchant(merchantId: string) {
   const createdRoles: Record<string, any> = {};
 
-  // Fetch permissions once
   const allPermissions = await prisma.permission.findMany();
   const permissionMap = new Map(allPermissions.map((p) => [p.key, p]));
 
   for (const roleName of DEFAULT_ROLE_NAMES) {
-    // Upsert role to avoid duplicates
     const role = await prisma.role.upsert({
       where: {
         merchantId_name: { merchantId, name: roleName },
@@ -103,15 +99,12 @@ async function createRolesForMerchant(merchantId: string) {
 
     createdRoles[roleName] = role;
 
-    // Get permission keys for this role
     const permissionKeys = ROLE_PERMISSIONS[roleName] || [];
 
-    // Clear existing role-permissions (in case of upsert)
     await prisma.rolePermission.deleteMany({
       where: { roleId: role.id },
     });
 
-    // Assign permissions to role using pre-fetched permissions
     for (const permKey of permissionKeys) {
       const permission = permissionMap.get(permKey);
       if (permission) {
@@ -128,17 +121,14 @@ async function createRolesForMerchant(merchantId: string) {
   return createdRoles;
 }
 
+// REGISTER
 export async function registerMerchantHandler(
   req: FastifyRequest,
   reply: FastifyReply,
 ) {
   const body = req.body as any;
 
-  const merchantName = body.merchantName as string;
-  const storeName = body.storeName as string;
-  const fullName = body.fullName as string;
-  const email = body.email as string;
-  const password = body.password as string;
+  const { merchantName, storeName, fullName, email, password } = body;
 
   if (!merchantName || !storeName || !fullName || !email || !password) {
     return reply.code(400).send({ message: "Missing required fields" });
@@ -150,18 +140,14 @@ export async function registerMerchantHandler(
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Ensure all permissions exist before registering merchant
   await ensurePermissionsExist();
 
-  // Create merchant first
   const merchant = await prisma.merchant.create({
     data: { name: merchantName },
   });
 
-  // Create roles for merchant (BEFORE user transaction)
   const roles = await createRolesForMerchant(merchant.id);
 
-  // Create store and user in a transaction
   const { user } = await prisma.$transaction(async (tx) => {
     const store = await tx.store.create({
       data: {
@@ -180,7 +166,6 @@ export async function registerMerchantHandler(
       },
     });
 
-    // Assign user to ADMIN role
     await tx.userRole.create({
       data: {
         userId: user.id,
@@ -198,10 +183,9 @@ export async function registerMerchantHandler(
   });
 }
 
+// LOGIN (🔥 UPGRADED)
 export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
-  const body = req.body as any;
-  const email = body.email as string;
-  const password = body.password as string;
+  const { email, password } = req.body as any;
 
   if (!email || !password)
     return reply.code(400).send({ message: "Missing email or password" });
@@ -212,31 +196,45 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return reply.code(401).send({ message: "Invalid credentials" });
 
-  // Verify user has merchantId
   if (!user.merchantId) {
     return reply.code(400).send({
-      message:
-        "User account is missing merchant association. Please contact support.",
+      message: "User missing merchant association",
     });
   }
 
-  // Fetch roles for this user
+  // 🔥 Fetch roles + permissions
   const userRoles = await prisma.userRole.findMany({
     where: { userId: user.id },
-    select: {
+    include: {
       role: {
-        select: { name: true },
+        include: {
+          rolePerms: {
+            include: {
+              permission: true,
+            },
+          },
+        },
       },
     },
   });
 
   const roles = userRoles.map((ur) => ur.role.name);
 
+  const permissions = Array.from(
+    new Set(
+      userRoles.flatMap((ur) =>
+        ur.role.rolePerms.map((rp) => rp.permission.key),
+      ),
+    ),
+  );
+
+  // 🔥 JWT now carries permissions
   const token = await reply.jwtSign({
     sub: user.id,
     merchantId: user.merchantId,
     storeId: user.storeId || undefined,
     roles,
+    permissions,
   });
 
   await prisma.user.update({
@@ -247,6 +245,7 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   return reply.send({ token });
 }
 
+// ME (unchanged - already solid)
 export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
   const userId = (req.user as any).sub as string;
 
@@ -302,11 +301,13 @@ export async function meHandler(req: FastifyRequest, reply: FastifyReply) {
   ).sort();
 
   const { userRoles, store, ...userBase } = userWithRoles;
-  const user = {
-    ...userBase,
-    storeName: store?.name || null,
-  };
 
-  return reply.send({ user, roles, permissions });
+  return reply.send({
+    user: {
+      ...userBase,
+      storeName: store?.name || null,
+    },
+    roles,
+    permissions,
+  });
 }
-

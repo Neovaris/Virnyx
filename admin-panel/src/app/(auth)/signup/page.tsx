@@ -132,8 +132,7 @@ export default function SignupPage() {
 
       router.replace("/login?message=Registration successful! Please log in.");
     } catch (e: unknown) {
-      const error = e as any;
-      setErr(error?.message ?? "Registration failed");
+      setErr(e instanceof Error ? e.message : "Registration failed");
       setLoading(false);
     }
   };

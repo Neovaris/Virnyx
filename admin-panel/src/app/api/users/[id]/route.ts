@@ -14,13 +14,17 @@ export async function PATCH(
   const token = (await cookies()).get("token")?.value;
   if (!token) return NextResponse.json({ message: "No token" }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
+  const body = (await req.json().catch(() => ({}))) as {
+    fullName?: unknown;
+    phone?: unknown;
+    storeId?: unknown;
+  };
 
   // only allow fields your backend PATCH supports
-  const payload: any = {};
-  if (body.fullName !== undefined) payload.fullName = body.fullName;
-  if (body.phone !== undefined) payload.phone = body.phone;
-  if (body.storeId !== undefined) payload.storeId = body.storeId;
+  const payload: { fullName?: string; phone?: string; storeId?: string } = {};
+  if (typeof body.fullName === "string") payload.fullName = body.fullName;
+  if (typeof body.phone === "string") payload.phone = body.phone;
+  if (typeof body.storeId === "string") payload.storeId = body.storeId;
 
   if (Object.keys(payload).length === 0) {
     return NextResponse.json(
@@ -29,7 +33,7 @@ export async function PATCH(
     );
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/users/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: {

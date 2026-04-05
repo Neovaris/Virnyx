@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Guard from "@/components/admin/Guard";
+import { SkeletonInventory } from "@/components/admin/SkeletonLoader";
 
 type InventoryRow = {
   productId: string;
@@ -69,17 +70,41 @@ export default function InventoryPage() {
   const [ledgerItems, setLedgerItems] = useState<LedgerItem[]>([]);
   const [ledgerFor, setLedgerFor] = useState<InventoryRow | null>(null);
 
+  const [storeSettings, setStoreSettings] = useState<{
+    lowStockThreshold: number;
+  } | null>(null);
+
   useEffect(() => {
     const t = window.setTimeout(() => setQDebounced(q.trim()), 250);
     return () => window.clearTimeout(t);
   }, [q]);
+
+  useEffect(() => {
+    const loadStore = async () => {
+      try {
+        const res = await fetch("/api/settings/store", {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        const json = await res.json();
+        setStoreSettings(json?.store ?? null);
+      } catch {
+        setStoreSettings(null);
+      }
+    };
+
+    loadStore();
+  }, []);
 
   const fetchList = async () => {
     setLoading(true);
     try {
       const url =
         `/api/inventory?q=${encodeURIComponent(qDebounced)}&page=${page}&limit=${limit}` +
-        (lowStock.trim() ? `&lowStock=${encodeURIComponent(lowStock.trim())}` : "");
+        (lowStock.trim()
+          ? `&lowStock=${encodeURIComponent(lowStock.trim())}`
+          : "");
       const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         setData(null);
@@ -96,7 +121,6 @@ export default function InventoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qDebounced, page, lowStock]);
 
-  const pages = data?.pages ?? 1;
   const items = data?.items ?? [];
 
   const openAction = (m: "IN" | "OUT" | "ADJUST", row: InventoryRow) => {
@@ -126,8 +150,12 @@ export default function InventoryPage() {
         const qtyNum = Math.trunc(Number(qty));
         const unitCostNum = unitCost.trim() ? Number(unitCost) : undefined;
 
-        if (!Number.isFinite(qtyNum) || qtyNum <= 0) return setErr("qty must be > 0");
-        if (unitCostNum !== undefined && (!Number.isFinite(unitCostNum) || unitCostNum < 0))
+        if (!Number.isFinite(qtyNum) || qtyNum <= 0)
+          return setErr("qty must be > 0");
+        if (
+          unitCostNum !== undefined &&
+          (!Number.isFinite(unitCostNum) || unitCostNum < 0)
+        )
           return setErr("unitCost must be >= 0");
 
         const res = await fetch("/api/inventory/stock-in", {
@@ -147,7 +175,8 @@ export default function InventoryPage() {
 
       if (mode === "OUT") {
         const qtyNum = Math.trunc(Number(qty));
-        if (!Number.isFinite(qtyNum) || qtyNum <= 0) return setErr("qty must be > 0");
+        if (!Number.isFinite(qtyNum) || qtyNum <= 0)
+          return setErr("qty must be > 0");
 
         const res = await fetch("/api/inventory/stock-out", {
           method: "POST",
@@ -171,15 +200,25 @@ export default function InventoryPage() {
           return setErr("Provide exactly one: newOnHand OR qtyChange");
         }
 
-        const payload: any = { productId: selected.productId, note: note.trim() || undefined };
+        const payload: {
+          productId: string;
+          note?: string;
+          newOnHand?: number;
+          qtyChange?: number;
+        } = {
+          productId: selected.productId,
+          note: note.trim() || undefined,
+        };
 
         if (hasNew) {
           const v = Math.trunc(Number(newOnHand));
-          if (!Number.isFinite(v) || v < 0) return setErr("newOnHand must be integer >= 0");
+          if (!Number.isFinite(v) || v < 0)
+            return setErr("newOnHand must be integer >= 0");
           payload.newOnHand = v;
         } else {
           const v = Math.trunc(Number(qty));
-          if (!Number.isFinite(v) || v === 0) return setErr("qtyChange must be non-zero integer");
+          if (!Number.isFinite(v) || v === 0)
+            return setErr("qtyChange must be non-zero integer");
           payload.qtyChange = v;
         }
 
@@ -205,9 +244,12 @@ export default function InventoryPage() {
     setLedgerOpen(true);
     setLedgerLoading(true);
     try {
-      const res = await fetch(`/api/inventory/ledger?productId=${encodeURIComponent(row.productId)}&page=1&limit=50`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/inventory/ledger?productId=${encodeURIComponent(row.productId)}&page=1&limit=50`,
+        {
+          cache: "no-store",
+        },
+      );
       const body = await res.json().catch(() => ({}));
       setLedgerItems(body?.items ?? []);
     } finally {
@@ -224,7 +266,9 @@ export default function InventoryPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Inventory</h1>
-            <div className="text-sm text-slate-400">{data?.total ?? 0} item(s)</div>
+            <div className="text-sm text-slate-400">
+              {data?.total ?? 0} item(s)
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -244,7 +288,7 @@ export default function InventoryPage() {
                 setPage(1);
                 setLowStock(e.target.value);
               }}
-              placeholder="Low stock ≤ (e.g. 10)"
+              placeholder={`Low stock ≤ (default: ${storeSettings?.lowStockThreshold ?? 0})`}
               inputMode="numeric"
               className="w-full sm:w-44 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
@@ -281,8 +325,8 @@ export default function InventoryPage() {
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={7}>
-                      Loading inventory...
+                    <td className="px-4 py-0" colSpan={7}>
+                      <SkeletonInventory />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (
@@ -293,15 +337,20 @@ export default function InventoryPage() {
                   </tr>
                 ) : (
                   items.map((r) => {
-                    const low = lowStockActive
-                      ? r.onHand <= Number(lowStock)
-                      : r.onHand <= 10; // default badge threshold
+                    const threshold =
+                      lowStockActive && lowStock.trim()
+                        ? Number(lowStock)
+                        : (storeSettings?.lowStockThreshold ?? 0);
+
+                    const low = r.onHand <= threshold;
 
                     return (
                       <tr key={r.productId} className="hover:bg-slate-900/30">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="font-medium text-slate-100">{r.name}</div>
+                            <div className="font-medium text-slate-100">
+                              {r.name}
+                            </div>
                             {low ? (
                               <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-200">
                                 Low
@@ -312,11 +361,21 @@ export default function InventoryPage() {
                             {r.barcode ? `Barcode: ${r.barcode}` : ""}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-300">{r.sku ?? "-"}</td>
-                        <td className="px-4 py-3 text-right text-slate-100">{money(r.price)}</td>
-                        <td className="px-4 py-3 text-right text-slate-100">{r.onHand}</td>
-                        <td className="px-4 py-3 text-right text-slate-300">{r.reserved}</td>
-                        <td className="px-4 py-3 text-right text-slate-100">{r.available}</td>
+                        <td className="px-4 py-3 text-slate-300">
+                          {r.sku ?? "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-100">
+                          {money(r.price)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-100">
+                          {r.onHand}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-300">
+                          {r.reserved}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-100">
+                          {r.available}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex flex-wrap items-center gap-2 justify-end">
                             <button
@@ -384,16 +443,24 @@ export default function InventoryPage() {
         {/* Action Modal */}
         {open && selected ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60" onClick={closeModal} />
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={closeModal}
+            />
 
             <div className="relative w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">
-                    {mode === "IN" ? "Stock In" : mode === "OUT" ? "Stock Out" : "Adjust Stock"}
+                    {mode === "IN"
+                      ? "Stock In"
+                      : mode === "OUT"
+                        ? "Stock Out"
+                        : "Adjust Stock"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    {selected.name} • On hand: {selected.onHand} • Available: {selected.available}
+                    {selected.name} • On hand: {selected.onHand} • Available:{" "}
+                    {selected.available}
                   </p>
                 </div>
 
@@ -409,8 +476,10 @@ export default function InventoryPage() {
                 {mode === "ADJUST" ? (
                   <>
                     <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-3 text-xs text-slate-400">
-                      Provide <b>either</b> <span className="text-slate-200">newOnHand</span> or{" "}
-                      <span className="text-slate-200">qtyChange</span> (not both).
+                      Provide <b>either</b>{" "}
+                      <span className="text-slate-200">newOnHand</span> or{" "}
+                      <span className="text-slate-200">qtyChange</span> (not
+                      both).
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -502,7 +571,10 @@ export default function InventoryPage() {
         {/* Ledger Drawer */}
         {ledgerOpen && ledgerFor ? (
           <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setLedgerOpen(false)} />
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setLedgerOpen(false)}
+            />
 
             <div className="relative h-full w-full max-w-xl border-l border-slate-800 bg-slate-950 p-5 overflow-auto">
               <div className="flex items-start justify-between gap-4">
@@ -523,9 +595,13 @@ export default function InventoryPage() {
 
               <div className="mt-4 space-y-2">
                 {ledgerLoading ? (
-                  <div className="text-slate-400 text-sm">Loading ledger...</div>
+                  <div className="text-slate-400 text-sm">
+                    Loading ledger...
+                  </div>
                 ) : ledgerItems.length === 0 ? (
-                  <div className="text-slate-400 text-sm">No ledger entries.</div>
+                  <div className="text-slate-400 text-sm">
+                    No ledger entries.
+                  </div>
                 ) : (
                   ledgerItems.map((x) => (
                     <div
@@ -545,14 +621,20 @@ export default function InventoryPage() {
                       </div>
 
                       <div className="mt-1 text-xs text-slate-400">
-                        Ref: <span className="text-slate-300">{x.reference}</span>
+                        Ref:{" "}
+                        <span className="text-slate-300">{x.reference}</span>
                         {x.unitCost !== null ? (
-                          <span className="text-slate-500"> • unitCost: {money(x.unitCost)}</span>
+                          <span className="text-slate-500">
+                            {" "}
+                            • unitCost: {money(x.unitCost)}
+                          </span>
                         ) : null}
                       </div>
 
                       {x.note ? (
-                        <div className="mt-2 text-xs text-slate-300">{x.note}</div>
+                        <div className="mt-2 text-xs text-slate-300">
+                          {x.note}
+                        </div>
                       ) : null}
                     </div>
                   ))
@@ -579,7 +661,13 @@ function Th({ label, right }: { label: string; right?: boolean }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <div className="mb-1 text-xs text-slate-400">{label}</div>

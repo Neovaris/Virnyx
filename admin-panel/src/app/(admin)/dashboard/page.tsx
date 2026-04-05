@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import StatCard from "@/components/admin/StatCard";
 import DataTable from "@/components/admin/DataTable";
 import Guard from "@/components/admin/Guard";
+import { SkeletonDashboard } from "@/components/admin/SkeletonLoader";
 import {
   BarChart,
   Bar,
@@ -107,6 +108,10 @@ type RefundCashiersReport = {
   }>;
 };
 
+type PendingRefund = {
+  amount?: number;
+};
+
 function money(n: number) {
   return `GHS ${Number(n ?? 0).toFixed(2)}`;
 }
@@ -180,7 +185,7 @@ export default function DashboardPage() {
       const [dRes, dYRes, lRes, hRes, sRes, cRes, rcRes, prRes] = await Promise.all([
         fetch(`/api/reports/daily?date=${date}`, { cache: "no-store" }),
         fetch(`/api/reports/daily?date=${yesterday}`, { cache: "no-store" }),
-        fetch(`/api/reports/low-stock?threshold=10&limit=10`, {
+        fetch(`/api/reports/low-stock?limit=10`, {
           cache: "no-store",
         }),
         fetch(`/api/reports/hourly?date=${date}`, { cache: "no-store" }),
@@ -212,9 +217,13 @@ export default function DashboardPage() {
       // Handle pending refunds
       if (prRes.ok) {
         const prJson = await prRes.json().catch(() => ({}));
-        const refunds = Array.isArray(prJson?.refunds) ? prJson.refunds : [];
+        const refunds = Array.isArray(prJson?.refunds)
+          ? (prJson.refunds as PendingRefund[])
+          : [];
         setPendingRefundsCount(refunds.length);
-        setPendingRefundsTotal(refunds.reduce((sum: number, r: any) => sum + (r.amount || 0), 0));
+        setPendingRefundsTotal(
+          refunds.reduce((sum: number, r) => sum + (Number(r.amount) || 0), 0),
+        );
       }
 
       setLastUpdatedAt(new Date().toISOString());
@@ -265,7 +274,7 @@ export default function DashboardPage() {
   const topRefundCashiers = (refundCashiers?.items ?? []).slice(0, 5);
 
   if (loading)
-    return <div className="text-slate-400">Loading dashboard...</div>;
+    return <SkeletonDashboard />;
 
   return (
     <div className="space-y-6">
@@ -370,7 +379,7 @@ export default function DashboardPage() {
               />
               <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} />
               <Tooltip
-                formatter={(value: any) => [money(Number(value)), "Total"]}
+                formatter={(value: unknown) => [money(Number(value)), "Total"]}
                 labelFormatter={(label) => `Hour: ${label}:00`}
                 contentStyle={{
                   backgroundColor: "#0f172a",
@@ -412,7 +421,7 @@ export default function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: any) => money(Number(value))}
+                    formatter={(value: unknown) => money(Number(value))}
                     contentStyle={{
                       backgroundColor: "#0f172a",
                       border: "1px solid #1e293b",
@@ -457,9 +466,18 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold">Top products</h2>
           <DataTable
             columns={[
-              { header: "Product", accessor: (r: any) => r.name },
-              { header: "Qty", accessor: (r: any) => r.qty },
-              { header: "Revenue", accessor: (r: any) => money(r.revenue) },
+              {
+                header: "Product",
+                accessor: (r: DailyReport["topProducts"][number]) => r.name,
+              },
+              {
+                header: "Qty",
+                accessor: (r: DailyReport["topProducts"][number]) => r.qty,
+              },
+              {
+                header: "Revenue",
+                accessor: (r: DailyReport["topProducts"][number]) => money(r.revenue),
+              },
             ]}
             rows={daily?.topProducts ?? []}
             emptyText="No sales"
@@ -470,10 +488,10 @@ export default function DashboardPage() {
           <h2 className="text-lg font-semibold">Low stock</h2>
           <DataTable
             columns={[
-              { header: "Product", accessor: (r: any) => r.name },
-              { header: "SKU", accessor: (r: any) => r.sku ?? "-" },
-              { header: "On hand", accessor: (r: any) => r.qtyOnHand },
-              { header: "Price", accessor: (r: any) => money(r.price) },
+              { header: "Product", accessor: (r: LowStock["items"][number]) => r.name },
+              { header: "SKU", accessor: (r: LowStock["items"][number]) => r.sku ?? "-" },
+              { header: "On hand", accessor: (r: LowStock["items"][number]) => r.qtyOnHand },
+              { header: "Price", accessor: (r: LowStock["items"][number]) => money(r.price) },
             ]}
             rows={lowStock?.items ?? []}
             emptyText="No low-stock items"
@@ -494,11 +512,11 @@ export default function DashboardPage() {
               </div>
               <DataTable
                 columns={[
-                  { header: "Cashier", accessor: (r: any) => r.cashierName },
-                  { header: "Sales", accessor: (r: any) => r.completedCount },
+                  { header: "Cashier", accessor: (r: CashiersReport["items"][number]) => r.cashierName },
+                  { header: "Sales", accessor: (r: CashiersReport["items"][number]) => r.completedCount },
                   {
                     header: "Revenue",
-                    accessor: (r: any) => money(r.totalRevenue),
+                    accessor: (r: CashiersReport["items"][number]) => money(r.totalRevenue),
                   },
                 ]}
                 rows={topCashiers}
@@ -512,11 +530,11 @@ export default function DashboardPage() {
               </div>
               <DataTable
                 columns={[
-                  { header: "Cashier", accessor: (r: any) => r.cashierName },
-                  { header: "Refunds", accessor: (r: any) => r.refundCount },
+                  { header: "Cashier", accessor: (r: RefundCashiersReport["items"][number]) => r.cashierName },
+                  { header: "Refunds", accessor: (r: RefundCashiersReport["items"][number]) => r.refundCount },
                   {
                     header: "Amount",
-                    accessor: (r: any) => money(r.refundAmount),
+                    accessor: (r: RefundCashiersReport["items"][number]) => money(r.refundAmount),
                   },
                 ]}
                 rows={topRefundCashiers}
@@ -533,7 +551,7 @@ export default function DashboardPage() {
             columns={[
               {
                 header: "Receipt",
-                accessor: (r: any) => (
+                accessor: (r: SalesList["items"][number]) => (
                   <Link
                     href={`/sales/${r.id}`}
                     className="text-indigo-400 hover:text-indigo-300 underline-offset-4 hover:underline"
@@ -542,10 +560,10 @@ export default function DashboardPage() {
                   </Link>
                 ),
               },
-              { header: "Total", accessor: (r: any) => money(r.total) },
+              { header: "Total", accessor: (r: SalesList["items"][number]) => money(r.total) },
               {
                 header: "Time",
-                accessor: (r: any) =>
+                accessor: (r: SalesList["items"][number]) =>
                   new Date(r.createdAt).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",

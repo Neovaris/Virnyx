@@ -42,9 +42,9 @@ class InventoryState {
   });
 
   const InventoryState.initial()
-      : loading = false,
-        items = const {},
-        error = null;
+    : loading = false,
+      items = const {},
+      error = null;
 
   InventoryItem? getStock(String productId) => items[productId];
 
@@ -72,17 +72,15 @@ class InventoryState {
   }
 }
 
-final inventoryProvider =
-    NotifierProvider<InventoryController, InventoryState>(
+final inventoryProvider = NotifierProvider<InventoryController, InventoryState>(
   InventoryController.new,
 );
 
 class InventoryController extends Notifier<InventoryState> {
-  late final ApiClient _client;
+  ApiClient get _client => ref.read(apiProvider);
 
   @override
   InventoryState build() {
-    _client = ref.read(apiProvider);
     Future.microtask(_loadInventory);
     return const InventoryState.initial();
   }
@@ -107,7 +105,7 @@ class InventoryController extends Notifier<InventoryState> {
 
       final inventoryMap = <String, InventoryItem>{};
       final lowStockItems = <String>[];
-      
+
       for (final item in rawItems) {
         final inv = InventoryItem.fromJson(item as Map<String, dynamic>);
         inventoryMap[inv.productId] = inv;
@@ -119,14 +117,16 @@ class InventoryController extends Notifier<InventoryState> {
       // Add notification for low stock items if any
       if (lowStockItems.isNotEmpty) {
         final count = lowStockItems.length;
-        ref.read(terminalNotificationsProvider.notifier).add(
-          TerminalNotificationItem(
-            id: 'low_stock_${DateTime.now().millisecondsSinceEpoch}',
-            title: '⚠️ $count item(s) running low on stock',
-            type: TerminalNotificationType.warning,
-            createdAt: DateTime.now(),
-          ),
-        );
+        ref
+            .read(terminalNotificationsProvider.notifier)
+            .add(
+              TerminalNotificationItem(
+                id: 'low_stock_${DateTime.now().millisecondsSinceEpoch}',
+                title: '⚠️ $count item(s) running low on stock',
+                type: TerminalNotificationType.warning,
+                createdAt: DateTime.now(),
+              ),
+            );
       }
 
       state = state.copyWith(
@@ -135,10 +135,7 @@ class InventoryController extends Notifier<InventoryState> {
         clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(
-        loading: false,
-        error: 'Inventory load error: $e',
-      );
+      state = state.copyWith(loading: false, error: 'Inventory load error: $e');
     }
   }
 

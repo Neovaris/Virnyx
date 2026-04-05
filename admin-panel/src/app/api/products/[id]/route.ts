@@ -14,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ message: "Invalid product id" }, { status: 400 });
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/products/${encodeURIComponent(id)}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
@@ -35,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const body = await req.json().catch(() => ({}));
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/products/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: {
@@ -58,7 +58,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Invalid product id" }, { status: 400 });
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/products/${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },

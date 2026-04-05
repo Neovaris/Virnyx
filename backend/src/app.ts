@@ -25,6 +25,9 @@ import {
 import { globalErrorHandler } from "./middlewares/errorHandler";
 import { configureRateLimit } from "./common/rateLimit";
 
+// In local development, prefer .env.local values (for example local Postgres)
+// while still allowing .env as a fallback/default file.
+dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 // Validate required environment variables at startup

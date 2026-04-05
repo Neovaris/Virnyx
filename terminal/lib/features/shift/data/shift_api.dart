@@ -47,11 +47,9 @@ class ShiftCloseSummary {
 
 class ShiftApi {
   final Ref ref;
-  late final ApiClient _client;
+  final ApiClient _client;
 
-  ShiftApi(this.ref) {
-    _client = ref.read(apiProvider);
-  }
+  ShiftApi(this.ref) : _client = ref.read(apiProvider);
 
   Future<OpenedShift> openShift({required double openingCash}) async {
     final body = {'openingCash': openingCash};

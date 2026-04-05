@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   if (!token) return NextResponse.json({ message: "No token" }, { status: 401 });
 
   const url = new URL(req.url);
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
 
   // Pass-through all query params
   const upstream = await fetch(`${apiBase}/inventory/ledger?${url.searchParams.toString()}`, {

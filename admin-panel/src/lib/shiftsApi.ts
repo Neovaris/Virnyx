@@ -66,7 +66,7 @@ class ShiftsApi {
     return response.data;
   }
 
-  async getShiftDetails(id: string): Promise<any> {
+  async getShiftDetails(id: string): Promise<ShiftWithSummary> {
     const response = await apiClient.get(`/sessions/${id}`);
     return response.data;
   }

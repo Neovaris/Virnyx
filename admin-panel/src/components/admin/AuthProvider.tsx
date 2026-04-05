@@ -1,7 +1,7 @@
 // src/components/admin/AuthProvider.tsx
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { MeResponse } from "@/lib/auth.shared";
 import { clientMe, clientLogout } from "@/lib/auth.client";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const data = await clientMe();
@@ -43,9 +43,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const doLogout = async () => {
+  const doLogout = useCallback(async () => {
     try {
       await clientLogout();
     } catch {}
@@ -53,17 +53,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     setPermissions([]);
     router.replace("/login");
     router.refresh();
-  };
+  }, [router]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
-  const can = (perm: string) => permissions.includes(perm);
+  const can = useCallback((perm: string) => permissions.includes(perm), [permissions]);
 
   const value = useMemo(
     () => ({ me, permissions, loading, can, refresh, doLogout }),
-    [me, permissions, loading]
+    [me, permissions, loading, can, refresh, doLogout]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

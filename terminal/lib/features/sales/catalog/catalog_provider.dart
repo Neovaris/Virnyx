@@ -6,15 +6,15 @@ import '../../../core/api/api_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'catalog_models.dart';
 
-final catalogProvider =
-    NotifierProvider<CatalogController, CatalogState>(CatalogController.new);
+final catalogProvider = NotifierProvider<CatalogController, CatalogState>(
+  CatalogController.new,
+);
 
 class CatalogController extends Notifier<CatalogState> {
-  late final ApiClient _client;
+  ApiClient get _client => ref.read(apiProvider);
 
   @override
   CatalogState build() {
-    _client = ref.read(apiProvider);
     // return initial state immediately, then load async
     Future.microtask(_loadInitial);
     return const CatalogState.initial();

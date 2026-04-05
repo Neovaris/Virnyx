@@ -14,7 +14,7 @@ async function readJsonSafe(res: Response) {
 
 export async function GET() {
   const token = await getTokenFromCookie();
-  const res = await fetch(`${BACKEND_URL}/settings/store`, {
+  const res = await fetch(`${BACKEND_URL}/settings/tax`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
@@ -27,7 +27,7 @@ export async function PATCH(req: Request) {
   const token = await getTokenFromCookie();
   const payload = await req.json().catch(() => ({}));
 
-  const res = await fetch(`${BACKEND_URL}/settings/store`, {
+  const res = await fetch(`${BACKEND_URL}/settings/tax`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { shiftsApi } from '@/lib/shiftsApi';
+import { shiftsApi, ShiftWithSummary } from '@/lib/shiftsApi';
 
 interface CashierPerformance {
   id: string;
@@ -35,7 +35,7 @@ export default function CashiersPage() {
       setError(null);
       try {
         // Fetch all shifts and aggregate by cashier
-        let allShifts: any[] = [];
+        let allShifts: ShiftWithSummary[] = [];
         let page = 1;
         let hasMore = true;
 
@@ -107,8 +107,8 @@ export default function CashiersPage() {
         });
 
         setCashiers(cashierArray);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch cashier data');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch cashier data');
       } finally {
         setLoading(false);
       }

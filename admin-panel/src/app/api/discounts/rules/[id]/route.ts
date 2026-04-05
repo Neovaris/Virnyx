@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTokenFromCookie } from "@/lib/auth.server";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 
 export async function GET(
   _req: Request,

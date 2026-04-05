@@ -131,13 +131,35 @@ class _TerminalTopStripState extends ConsumerState<TerminalTopStrip> {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: Colors.white.withOpacity(0.10)),
                 ),
-                child: Text(
-                  merchantSettings.storeName.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.4,
+                child: userAsync.when(
+                  data: (user) {
+                    final storeName = user?.storeName ?? 'NO STORE';
+
+                    return Text(
+                      storeName.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.4,
+                      ),
+                    );
+                  },
+                  loading: () => const Text(
+                    '...',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  error: (_, __) => const Text(
+                    'ERROR',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ),

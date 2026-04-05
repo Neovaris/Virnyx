@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { shiftsApi, ShiftsListResponse, ShiftWithSummary } from '@/lib/shiftsApi';
+import { useState, useEffect, useCallback } from 'react';
+import { shiftsApi, ShiftWithSummary } from '@/lib/shiftsApi';
+import { SkeletonShifts } from '@/components/admin/SkeletonLoader';
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<ShiftWithSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const limit = 20;
   const [total, setTotal] = useState(0);
   const [selectedShift, setSelectedShift] = useState<ShiftWithSummary | null>(null);
   
@@ -17,7 +18,7 @@ export default function ShiftsPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  const fetchShifts = async () => {
+  const fetchShifts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -30,16 +31,17 @@ export default function ShiftsPage() {
       });
       setShifts(response.items);
       setTotal(response.total);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch shifts');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch shifts';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, statusFilter, fromDate, toDate]);
 
   useEffect(() => {
     fetchShifts();
-  }, [page, limit, statusFilter, fromDate, toDate]);
+  }, [page, limit, statusFilter, fromDate, toDate, fetchShifts]);
 
   const handleResetFilters = () => {
     setStatusFilter('');
@@ -51,7 +53,7 @@ export default function ShiftsPage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'GHS',
       minimumFractionDigits: 2,
     }).format(value);
   };
@@ -144,7 +146,7 @@ export default function ShiftsPage() {
       {/* Shifts Table */}
       <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400">Loading shifts...</div>
+          <SkeletonShifts />
         ) : shifts.length === 0 ? (
           <div className="p-8 text-center text-slate-400">No shifts found</div>
         ) : (

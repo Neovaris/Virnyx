@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import Guard from "@/components/admin/Guard";
 import UserRoleEditor from "@/components/admin/UserRoleEditor";
 import { PasswordInput } from "@/components/admin/password_input";
+import { SkeletonTable } from "@/components/admin/SkeletonLoader";
 
 type RoleObj = { id: string; name: string };
 
@@ -194,7 +195,11 @@ export default function UsersPage() {
         if (!res.ok) return setErr(body?.message || "Create user failed");
       } else {
         // EDIT (backend supports fullName, phone, storeId)
-        const patchBody: any = {
+        const patchBody: {
+          fullName: string;
+          phone: string | null;
+          storeId: string | null;
+        } = {
           fullName: fullName.trim(),
           phone: phone.trim() || null,
           storeId: storeId.trim() || null,
@@ -308,8 +313,8 @@ export default function UsersPage() {
               <tbody className="divide-y divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-slate-400" colSpan={5}>
-                      Loading users...
+                    <td className="px-4 py-0" colSpan={5}>
+                      <SkeletonTable rows={5} />
                     </td>
                   </tr>
                 ) : items.length === 0 ? (

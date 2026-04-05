@@ -14,7 +14,7 @@ export async function PATCH(
     return NextResponse.json({ message: "Refund ID is required" }, { status: 400 });
   }
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 
   try {
     const res = await fetch(`${apiBase}/refunds/${encodeURIComponent(refundId)}/approve`, {
@@ -37,7 +37,7 @@ export async function PATCH(
 
     const body = await res.json();
     return NextResponse.json(body, { status: 200 });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Error approving refund:", e);
     return NextResponse.json(
       { message: "Server error approving refund" },

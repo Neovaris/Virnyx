@@ -8,7 +8,7 @@ import '../../../core/offline/offline_detector.dart';
 import '../../sales/offline/offline_sync_service.dart';
 import '../../shift/providers/shift_controller.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/providers/merchant_settings_provider.dart';
+import '../../auth/providers/user_provider.dart';
 
 final terminalStatusProvider =
     NotifierProvider<TerminalStatusNotifier, TerminalStatusState>(
@@ -33,7 +33,7 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
     final syncState = ref.watch(offlineSyncProvider);
     final shift = ref.watch(shiftProvider);
     final auth = ref.watch(authProvider);
-    final merchantSettings = ref.watch(merchantSettingsProvider);
+    final userAsync = ref.watch(userProvider);
 
     final connectionStatus = isOffline
         ? TerminalConnectionStatus.offline
@@ -42,6 +42,10 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
     final syncStatus = _mapSyncStatus(syncState);
     final shiftStatus = shift.active ? ShiftStatus.open : ShiftStatus.closed;
     final cashierName = auth.userId;
+    final storeName = userAsync.maybeWhen(
+      data: (user) => user?.storeName ?? 'My Store',
+      orElse: () => 'My Store',
+    );
 
     state = TerminalStatusState(
       connectionStatus: connectionStatus,
@@ -51,7 +55,7 @@ class TerminalStatusNotifier extends Notifier<TerminalStatusState> {
       shiftStatus: shiftStatus,
       cashierName: cashierName,
       terminalName: 'Terminal 01',
-      storeName: merchantSettings.storeName,
+      storeName: storeName,
       appVersion: _cachedAppVersion ?? '1.0.0',
       now: DateTime.now(),
       lastSyncAt: syncState.lastSyncTime,

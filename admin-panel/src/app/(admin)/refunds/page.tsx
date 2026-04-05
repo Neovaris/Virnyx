@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Guard from "@/components/admin/Guard";
+import { SkeletonList } from "@/components/admin/SkeletonLoader";
 
 type RefundableItem = {
   saleItemId: string;
@@ -117,7 +118,7 @@ export default function RefundsPage() {
         const body = await res.json();
         setErr(body?.message || "Failed to approve refund");
       }
-    } catch (e) {
+    } catch {
       setErr("Error approving refund");
     } finally {
       setApprovingId(null);
@@ -144,7 +145,7 @@ export default function RefundsPage() {
         const body = await res.json();
         setErr(body?.message || "Failed to reject refund");
       }
-    } catch (e) {
+    } catch {
       setErr("Error rejecting refund");
     } finally {
       setRejectingId(null);
@@ -306,7 +307,7 @@ export default function RefundsPage() {
             ) : null}
 
             {loadingPending ? (
-              <div className="text-sm text-slate-400">Loading pending refunds...</div>
+              <SkeletonList />
             ) : pendingRefunds.length === 0 ? (
               <div className="text-sm text-slate-400">No pending refunds awaiting approval.</div>
             ) : (

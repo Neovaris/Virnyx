@@ -3,11 +3,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminApi } from '@/lib/adminApi';
+import { adminApi, DashboardMetrics, InventoryMetrics } from '@/lib/adminApi';
+import { SkeletonDashboard } from '@/components/admin/SkeletonLoader';
 
 export default function Home() {
-  const [metrics, setMetrics] = useState<any>(null);
-  const [inventoryMetrics, setInventoryMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [inventoryMetrics, setInventoryMetrics] = useState<InventoryMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +23,8 @@ export default function Home() {
         ]);
         setMetrics(dash);
         setInventoryMetrics(inv);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch metrics');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch metrics');
       } finally {
         setLoading(false);
       }
@@ -35,7 +36,7 @@ export default function Home() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'GHS',
       minimumFractionDigits: 2,
     }).format(value);
   };
@@ -45,11 +46,7 @@ export default function Home() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-slate-400">Loading dashboard...</div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (
@@ -99,7 +96,9 @@ export default function Home() {
 
             <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-6">
               <p className="text-slate-400 text-sm mb-2">Active Shifts</p>
-              <p className="text-2xl font-bold text-slate-100">-</p>
+              <p className="text-2xl font-bold text-slate-100">
+                {metrics.activeShifts}
+              </p>
               <Link
                 href="/shifts"
                 className="text-blue-400 hover:text-blue-300 text-xs mt-2 inline-block"
@@ -223,7 +222,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {metrics.topCashiers.map((cashier: any, idx: number) => (
+                {metrics.topCashiers.map((cashier: DashboardMetrics['topCashiers'][number], idx: number) => (
                   <tr
                     key={cashier.id}
                     className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors"

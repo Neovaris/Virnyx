@@ -39,6 +39,8 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.2",
+    "jest": "^30.0.0-alpha",
+    "ts-jest": "^30.0.0-alpha",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   },

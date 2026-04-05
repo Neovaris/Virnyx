@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   const page = searchParams.get("page") ?? "1";
   const limit = searchParams.get("limit") ?? "20";
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(
     `${apiBase}/users?q=${encodeURIComponent(q)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!;
+  const apiBase = process.env.BACKEND_URL ?? "http://localhost:4000";
   const upstream = await fetch(`${apiBase}/users`, {
     method: "POST",
     headers: {
