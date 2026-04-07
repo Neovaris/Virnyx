@@ -10,7 +10,6 @@ type RoleObj = { id: string; name: string };
 
 type UserRow = {
   id: string;
-  storeId: string | null;
   fullName: string;
   email: string;
   phone: string | null;
@@ -58,7 +57,6 @@ export default function UsersPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [storeId, setStoreId] = useState("");
   const [password, setPassword] = useState("");
 
   useEffect(() => {
@@ -105,7 +103,6 @@ export default function UsersPage() {
       setFullName(fresh.fullName ?? "");
       setEmail(fresh.email ?? "");
       setPhone(fresh.phone ?? "");
-      setStoreId(fresh.storeId ?? "");
     } catch {
       // ✅ silent fail
     }
@@ -121,7 +118,6 @@ export default function UsersPage() {
       setFullName(u.fullName ?? "");
       setEmail(u.email ?? "");
       setPhone(u.phone ?? "");
-      setStoreId(u.storeId ?? "");
       setPassword("");
 
       setOpen(true);
@@ -153,7 +149,6 @@ export default function UsersPage() {
     setFullName("");
     setEmail("");
     setPhone("");
-    setStoreId("");
     setPassword("");
     setOpen(true);
   };
@@ -186,7 +181,6 @@ export default function UsersPage() {
             fullName: fullName.trim(),
             email: email.trim().toLowerCase(),
             phone: phone.trim() || null,
-            storeId: storeId.trim() || null,
             password: password.trim(),
           }),
         });
@@ -195,14 +189,9 @@ export default function UsersPage() {
         if (!res.ok) return setErr(body?.message || "Create user failed");
       } else {
         // EDIT (backend supports fullName, phone, storeId)
-        const patchBody: {
-          fullName: string;
-          phone: string | null;
-          storeId: string | null;
-        } = {
+        const patchBody = {
           fullName: fullName.trim(),
           phone: phone.trim() || null,
-          storeId: storeId.trim() || null,
         };
 
         const res = await fetch(
@@ -433,8 +422,8 @@ export default function UsersPage() {
                     {editing ? "Edit user" : "New user"}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Edit supports: fullName, phone, storeId. Roles can be edited
-                    below (admins only).
+                    Edit supports: fullName, phone. Roles can be edited below
+                    (admins only).
                   </p>
                 </div>
                 <button
@@ -448,6 +437,7 @@ export default function UsersPage() {
               <div className="mt-4 space-y-3">
                 <Field label="Full name">
                   <input
+                    placeholder="Full name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
@@ -456,6 +446,7 @@ export default function UsersPage() {
 
                 <Field label="Email">
                   <input
+                    placeholder="Email"
                     value={email}
                     disabled={Boolean(editing)}
                     onChange={(e) => setEmail(e.target.value)}
@@ -465,17 +456,9 @@ export default function UsersPage() {
 
                 <Field label="Phone (optional)">
                   <input
+                    placeholder="Phone number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                </Field>
-
-                <Field label="Store ID (optional)">
-                  <input
-                    value={storeId}
-                    onChange={(e) => setStoreId(e.target.value)}
-                    placeholder="df60fe8a-..."
                     className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
                   />
                 </Field>
@@ -483,6 +466,7 @@ export default function UsersPage() {
                 {!editing ? (
                   <Field label="Password (create only)">
                     <PasswordInput
+                      placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"

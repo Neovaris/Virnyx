@@ -232,7 +232,7 @@ export async function loginHandler(req: FastifyRequest, reply: FastifyReply) {
   const token = await reply.jwtSign({
     sub: user.id,
     merchantId: user.merchantId,
-    storeId: user.storeId || undefined,
+    storeId: user.storeId,
     roles,
     permissions,
   });
