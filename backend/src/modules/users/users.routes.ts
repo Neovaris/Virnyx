@@ -17,7 +17,6 @@ function normalizeEmail(v: any) {
 }
 
 function isValidEmail(email: string) {
-  // simple check; good enough for v1
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
@@ -30,43 +29,40 @@ export async function usersRoutes(app: FastifyInstance) {
     "/users",
     { preHandler: [authGuard, tenantGuard, requirePermission("users:write")] },
     async (req, reply) => {
-      const { merchantId } = req.user as any;
+      const { merchantId, storeId: adminStoreId } = req.user as any;
       const body = req.body as any;
 
       const fullName = asString(body.fullName);
       const email = normalizeEmail(body.email);
       const phone = body.phone !== undefined ? asString(body.phone) : "";
-      const storeId = body.storeId !== undefined ? asString(body.storeId) : "";
       const password = asString(body.password);
 
-      if (!fullName) return reply.code(400).send({ message: "fullName is required" });
-      if (!email || !isValidEmail(email)) return reply.code(400).send({ message: "Valid email is required" });
+      // 🔥 CRITICAL: enforce store inheritance
+      if (!adminStoreId) {
+        return reply.code(400).send({
+          message: "Admin account is not assigned to any store",
+        });
+      }
+
+      if (!fullName)
+        return reply.code(400).send({ message: "fullName is required" });
+      if (!email || !isValidEmail(email))
+        return reply.code(400).send({ message: "Valid email is required" });
       if (!password || password.length < 6) {
-        return reply.code(400).send({ message: "password must be at least 6 characters" });
+        return reply
+          .code(400)
+          .send({ message: "password must be at least 6 characters" });
       }
 
       try {
         const result = await prisma.$transaction(async (tx) => {
-          // If storeId provided, ensure it belongs to merchant
-          if (storeId) {
-            const store = await tx.store.findFirst({
-              where: { id: storeId, merchantId, isActive: true },
-              select: { id: true },
-            });
-            if (!store) {
-              throw Object.assign(new Error("STORE_NOT_FOUND"), {
-                statusCode: 404,
-                payload: { message: "Store not found for this merchant" },
-              });
-            }
-          }
 
           const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
           const user = await tx.user.create({
             data: {
               merchantId,
-              storeId: storeId || null,
+              storeId: adminStoreId,
               fullName,
               email,
               phone: phone || null,
@@ -90,10 +86,12 @@ export async function usersRoutes(app: FastifyInstance) {
 
         return reply.code(201).send({ user: result });
       } catch (e: any) {
-        if (e?.statusCode && e?.payload) return reply.code(e.statusCode).send(e.payload);
+        if (e?.statusCode && e?.payload)
+          return reply.code(e.statusCode).send(e.payload);
 
         // Prisma unique error: email already exists
-        if (e?.code === "P2002") return reply.code(409).send({ message: "Email already exists" });
+        if (e?.code === "P2002")
+          return reply.code(409).send({ message: "Email already exists" });
 
         return reply.code(500).send({ message: e?.message ?? "Server error" });
       }
@@ -113,7 +111,10 @@ export async function usersRoutes(app: FastifyInstance) {
 
       const q = asString(qp.q);
       const page = Math.max(1, Math.trunc(Number(qp.page ?? 1)));
-      const limit = Math.min(100, Math.max(1, Math.trunc(Number(qp.limit ?? 20))));
+      const limit = Math.min(
+        100,
+        Math.max(1, Math.trunc(Number(qp.limit ?? 20))),
+      );
       const skip = (page - 1) * limit;
 
       const where: any = { merchantId };
@@ -154,7 +155,10 @@ export async function usersRoutes(app: FastifyInstance) {
         pages: Math.ceil(total / limit),
         items: items.map((u) => ({
           ...u,
-          roles: u.userRoles.map((ur) => ({ id: ur.role.id, name: ur.role.name })),
+          roles: u.userRoles.map((ur) => ({
+            id: ur.role.id,
+            name: ur.role.name,
+          })),
           userRoles: undefined,
         })),
       });
@@ -192,7 +196,10 @@ export async function usersRoutes(app: FastifyInstance) {
       return reply.send({
         user: {
           ...user,
-          roles: user.userRoles.map((ur) => ({ id: ur.role.id, name: ur.role.name })),
+          roles: user.userRoles.map((ur) => ({
+            id: ur.role.id,
+            name: ur.role.name,
+          })),
           userRoles: undefined,
         },
       });
@@ -214,27 +221,16 @@ export async function usersRoutes(app: FastifyInstance) {
       const data: any = {};
       if (body.fullName !== undefined) {
         const fullName = asString(body.fullName);
-        if (!fullName) return reply.code(400).send({ message: "fullName cannot be empty" });
+        if (!fullName)
+          return reply.code(400).send({ message: "fullName cannot be empty" });
         data.fullName = fullName;
       }
       if (body.phone !== undefined) data.phone = asString(body.phone) || null;
 
-      if (body.storeId !== undefined) {
-        const storeId = asString(body.storeId);
-        if (storeId) {
-          const store = await prisma.store.findFirst({
-            where: { id: storeId, merchantId, isActive: true },
-            select: { id: true },
-          });
-          if (!store) return reply.code(404).send({ message: "Store not found for this merchant" });
-          data.storeId = storeId;
-        } else {
-          data.storeId = null;
-        }
-      }
-
       if (Object.keys(data).length === 0) {
-        return reply.code(400).send({ message: "No fields provided to update" });
+        return reply
+          .code(400)
+          .send({ message: "No fields provided to update" });
       }
 
       const updated = await prisma.user.updateMany({
@@ -242,11 +238,20 @@ export async function usersRoutes(app: FastifyInstance) {
         data,
       });
 
-      if (updated.count !== 1) return reply.code(404).send({ message: "User not found" });
+      if (updated.count !== 1)
+        return reply.code(404).send({ message: "User not found" });
 
       const fresh = await prisma.user.findFirst({
         where: { id, merchantId },
-        select: { id: true, storeId: true, fullName: true, email: true, phone: true, status: true, createdAt: true },
+        select: {
+          id: true,
+          storeId: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          createdAt: true,
+        },
       });
 
       return reply.send({ user: fresh });
@@ -269,7 +274,8 @@ export async function usersRoutes(app: FastifyInstance) {
         data: { status: "disabled" },
       });
 
-      if (updated.count !== 1) return reply.code(404).send({ message: "User not found" });
+      if (updated.count !== 1)
+        return reply.code(404).send({ message: "User not found" });
       return reply.send({ message: "User disabled" });
     },
   );
@@ -290,7 +296,8 @@ export async function usersRoutes(app: FastifyInstance) {
         data: { status: "active" },
       });
 
-      if (updated.count !== 1) return reply.code(404).send({ message: "User not found" });
+      if (updated.count !== 1)
+        return reply.code(404).send({ message: "User not found" });
       return reply.send({ message: "User enabled" });
     },
   );
@@ -309,7 +316,9 @@ export async function usersRoutes(app: FastifyInstance) {
 
       const newPassword = asString(body.newPassword);
       if (!newPassword || newPassword.length < 6) {
-        return reply.code(400).send({ message: "newPassword must be at least 6 characters" });
+        return reply
+          .code(400)
+          .send({ message: "newPassword must be at least 6 characters" });
       }
 
       const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
@@ -319,7 +328,8 @@ export async function usersRoutes(app: FastifyInstance) {
         data: { passwordHash: hash },
       });
 
-      if (updated.count !== 1) return reply.code(404).send({ message: "User not found" });
+      if (updated.count !== 1)
+        return reply.code(404).send({ message: "User not found" });
 
       return reply.send({ message: "Password reset successful" });
     },
@@ -339,11 +349,15 @@ export async function usersRoutes(app: FastifyInstance) {
       const body = req.body as any;
 
       const roleId = asString(body.roleId);
-      if (!roleId) return reply.code(400).send({ message: "roleId is required" });
+      if (!roleId)
+        return reply.code(400).send({ message: "roleId is required" });
 
       try {
         const result = await prisma.$transaction(async (tx) => {
-          const user = await tx.user.findFirst({ where: { id: userId, merchantId }, select: { id: true } });
+          const user = await tx.user.findFirst({
+            where: { id: userId, merchantId },
+            select: { id: true },
+          });
           if (!user) {
             throw Object.assign(new Error("USER_NOT_FOUND"), {
               statusCode: 404,
@@ -351,7 +365,10 @@ export async function usersRoutes(app: FastifyInstance) {
             });
           }
 
-          const role = await tx.role.findFirst({ where: { id: roleId, merchantId }, select: { id: true, name: true } });
+          const role = await tx.role.findFirst({
+            where: { id: roleId, merchantId },
+            select: { id: true, name: true },
+          });
           if (!role) {
             throw Object.assign(new Error("ROLE_NOT_FOUND"), {
               statusCode: 404,
@@ -370,7 +387,8 @@ export async function usersRoutes(app: FastifyInstance) {
 
         return reply.send({ message: "Role assigned", ...result });
       } catch (e: any) {
-        if (e?.statusCode && e?.payload) return reply.code(e.statusCode).send(e.payload);
+        if (e?.statusCode && e?.payload)
+          return reply.code(e.statusCode).send(e.payload);
         return reply.code(500).send({ message: e?.message ?? "Server error" });
       }
     },
@@ -388,7 +406,10 @@ export async function usersRoutes(app: FastifyInstance) {
       const { id: userId, roleId } = req.params as any;
 
       // ensure user belongs to merchant (prevents cross-tenant deletes)
-      const user = await prisma.user.findFirst({ where: { id: userId, merchantId }, select: { id: true } });
+      const user = await prisma.user.findFirst({
+        where: { id: userId, merchantId },
+        select: { id: true },
+      });
       if (!user) return reply.code(404).send({ message: "User not found" });
 
       await prisma.userRole.deleteMany({ where: { userId, roleId } });

@@ -174,7 +174,7 @@ class _OpenShiftScreenState extends ConsumerState<OpenShiftScreen> {
                               await ref
                                   .read(shiftProvider.notifier)
                                   .closeShift();
-                              ref.read(authProvider.notifier).logout();
+                              await ref.read(authProvider.notifier).logout();
                               if (!mounted) return;
                               context.go('/login');
                             },
