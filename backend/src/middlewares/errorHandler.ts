@@ -20,7 +20,19 @@ export async function globalErrorHandler(
   // Determine status code
   const statusCode = err.statusCode || 500;
 
-  // Handle Prisma errors
+  // Handle Prisma connection errors (e.g. P1001 / unreachable DB host)
+  const isPrismaConnectivityError =
+    err.code === "P1001" ||
+    /Can't reach database server/i.test(String(err.message || ""));
+
+  if (isPrismaConnectivityError) {
+    return reply.code(503).send({
+      message: "Database temporarily unavailable",
+      code: "DB_UNAVAILABLE",
+    });
+  }
+
+  // Handle other Prisma errors
   if (err.code?.startsWith("P")) {
     logError("Prisma error", {
       code: err.code,

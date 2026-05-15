@@ -293,6 +293,9 @@ export async function salesRoutes(app: FastifyInstance) {
           });
 
           return { sale, reused: false, change };
+        }, {
+          maxWait: 10000,
+          timeout: 30000,
         });
 
         return reply.code(201).send({
@@ -303,6 +306,11 @@ export async function salesRoutes(app: FastifyInstance) {
         });
       } catch (e: any) {
         if (e?.statusCode && e?.payload) return reply.code(e.statusCode).send(e.payload);
+        if (e?.code === "P2028" || String(e?.message ?? "").includes("Transaction not found")) {
+          return reply.code(503).send({
+            message: "The sale transaction timed out. Please retry the payment.",
+          });
+        }
         return reply.code(500).send({ message: e?.message ?? "Server error" });
       }
     }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Guard from "@/components/admin/Guard";
 import { SkeletonProducts } from "@/components/admin/SkeletonLoader";
+import BarcodeField, { printBarcodeLabel } from "@/components/BarcodeField";
 
 type Product = {
   id: string;
@@ -54,6 +55,8 @@ export default function ProductsPage() {
   const [imageUploading, setImageUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Post-save print state
+  const [savedProduct, setSavedProduct] = useState<{ id: string; name: string; barcode: string | null } | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setQDebounced(q.trim()), 250);
@@ -88,6 +91,7 @@ export default function ProductsPage() {
   const openCreate = () => {
     setErr(null);
     setEditing(null);
+    setSavedProduct(null);
     setForm({ name: "", category: "", price: "", sku: "", barcode: "", imageUrl: "" });
     setOpen(true);
   };
@@ -108,6 +112,7 @@ export default function ProductsPage() {
 
   const closeModal = () => {
     if (saving || imageUploading) return;
+    setSavedProduct(null);
     setOpen(false);
   };
 
@@ -178,6 +183,8 @@ export default function ProductsPage() {
         return;
       }
 
+      const saved = body as { id: string; name: string; barcode: string | null };
+      setSavedProduct(saved);
       setOpen(false);
       await fetchList();
     } finally {
@@ -211,7 +218,35 @@ export default function ProductsPage() {
   return (
     <Guard perm="products:read">
       <div className="space-y-6">
-        {/* Header */}
+        {/* Post-save print banner */}
+        {savedProduct && savedProduct.barcode ? (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-emerald-200">
+              <span className="text-emerald-400">✓</span>
+              <span>
+                <span className="font-semibold">{savedProduct.name}</span> saved — barcode{" "}
+                <code className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-xs font-mono text-emerald-300">
+                  {savedProduct.barcode}
+                </code>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => printBarcodeLabel(savedProduct.barcode!, savedProduct.name)}
+                className="rounded-xl border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-500/30 transition-colors"
+              >
+                Print Barcode Label
+              </button>
+              <button
+                onClick={() => setSavedProduct(null)}
+                className="rounded-lg px-2 py-1 text-xs text-emerald-400 hover:text-emerald-200"
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Products</h1>
@@ -415,12 +450,12 @@ export default function ProductsPage() {
                   </Field>
                 </div>
 
-                <Field label="Barcode (optional)">
-                  <input
-                    aria-label="Product barcode"
+                <Field label="Barcode (scan, enter, or generate)">
+                  <BarcodeField
                     value={form.barcode}
-                    onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    onChange={(v) => setForm((f) => ({ ...f, barcode: v }))}
+                    excludeId={editing?.id}
+                    disabled={saving}
                   />
                 </Field>
 

@@ -25,9 +25,13 @@ import {
 import { globalErrorHandler } from "./middlewares/errorHandler";
 import { configureRateLimit } from "./common/rateLimit";
 
-// In local development, prefer .env.local values (for example local Postgres)
-// while still allowing .env as a fallback/default file.
-dotenv.config({ path: ".env.local" });
+// In local development, force .env.local values (for example local Postgres)
+// to override shell/session variables that may point to remote databases.
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config({ path: ".env.local", override: true });
+}
+
+// Load .env as fallback defaults for any variables not present yet.
 dotenv.config();
 
 // Validate required environment variables at startup

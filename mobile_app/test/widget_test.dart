@@ -11,20 +11,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('navigates from welcome to sign in', (WidgetTester tester) async {
+    await tester.pumpWidget(const VirnyxMobileApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('WELCOME'), findsNothing); // user updated copy
+    expect(find.text('CONTINUE'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.tap(find.text('CONTINUE'));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('SIGN IN'), findsOneWidget);
+    expect(find.text('Username'), findsOneWidget);
+  });
+
+  testWidgets('home screen renders product grid', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+
+    expect(find.text('ALL ITEMS'), findsWidgets);
+    expect(find.text('SEE ALL'), findsOneWidget);
+    expect(find.text('ADD'), findsOneWidget);
+    expect(find.text('NAME'), findsWidgets);
   });
 }

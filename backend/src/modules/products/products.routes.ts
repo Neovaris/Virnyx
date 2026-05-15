@@ -8,6 +8,25 @@ import { requirePermission } from "../../middlewares/requirePermission";
 function asString(v: any) {
   return String(v ?? "").trim();
 }
+
+/**
+ * Generate a unique Code128-compatible barcode for a merchant.
+ * Format: VRX-XXXXXXXX (8 alphanumeric chars)
+ * Retries up to 5 times to avoid the rare collision.
+ */
+async function generateUniqueBarcode(merchantId: string): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const suffix = Math.random().toString(36).slice(2, 10).toUpperCase().padEnd(8, "0");
+    const barcode = `VRX-${suffix}`;
+    const exists = await prisma.product.findFirst({
+      where: { merchantId, barcode, isDeleted: false },
+      select: { id: true },
+    });
+    if (!exists) return barcode;
+  }
+  // Final fallback with timestamp to guarantee uniqueness
+  return `VRX-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+}
 function asNumber(v: any) {
   return Number(v);
 }
@@ -42,6 +61,54 @@ function normalizeImageUrl(v: any) {
 
 export async function productRoutes(app: FastifyInstance) {
   // =========================
+  // BARCODE CHECK
+  // GET /products/barcode-check?barcode=XXX&excludeId=YYY
+  // Returns { available: true } or { available: false, conflict: { id, name } }
+  // =========================
+  app.get(
+    "/products/barcode-check",
+    { preHandler: [authGuard, tenantGuard, requirePermission("products:read")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const qp = req.query as any;
+      const barcode = asString(qp.barcode);
+      const excludeId = asString(qp.excludeId);
+
+      if (!barcode) return reply.code(400).send({ message: "barcode is required" });
+
+      const conflict = await prisma.product.findFirst({
+        where: {
+          merchantId,
+          barcode,
+          isDeleted: false,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        select: { id: true, name: true },
+      });
+
+      if (conflict) {
+        return reply.send({ available: false, conflict });
+      }
+      return reply.send({ available: true });
+    },
+  );
+
+  // =========================
+  // BARCODE GENERATE
+  // POST /products/barcode-generate
+  // Returns { barcode: "VRX-XXXXXXXX" }
+  // =========================
+  app.post(
+    "/products/barcode-generate",
+    { preHandler: [authGuard, tenantGuard, requirePermission("products:write")] },
+    async (req, reply) => {
+      const { merchantId } = req.user as any;
+      const barcode = await generateUniqueBarcode(merchantId);
+      return reply.send({ barcode });
+    },
+  );
+
+  // =========================
   // CREATE
   // POST /products
   // =========================
@@ -55,7 +122,7 @@ export async function productRoutes(app: FastifyInstance) {
       const name = asString(body.name);
       const price = asNumber(body.price);
       const sku = body.sku !== undefined ? asString(body.sku) : "";
-      const barcode = body.barcode !== undefined ? asString(body.barcode) : "";
+      let barcode = body.barcode !== undefined ? asString(body.barcode) : "";
       const imageUrl = body.imageUrl !== undefined ? normalizeImageUrl(body.imageUrl) : null;
       const category = body.category !== undefined ? asString(body.category) : "Uncategorized";
 
@@ -67,6 +134,11 @@ export async function productRoutes(app: FastifyInstance) {
           .send({ message: "imageUrl must be an absolute http(s) URL or a root-relative path" });
       }
 
+      // Auto-generate barcode if not provided
+      if (!barcode) {
+        barcode = await generateUniqueBarcode(merchantId);
+      }
+
       try {
         const result = await prisma.$transaction(async (tx) => {
           const product = await tx.product.create({
@@ -76,7 +148,7 @@ export async function productRoutes(app: FastifyInstance) {
               price,
               category,
               sku: sku || null,
-              barcode: barcode || null,
+              barcode: barcode,
               imageUrl,
             },
           });

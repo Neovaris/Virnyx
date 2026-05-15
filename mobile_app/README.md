@@ -1,17 +1,64 @@
-# mobile_app
+# Virnyx Mobile App
 
-A new Flutter project.
+This app uses Flutter so one codebase can target both Android and iOS.
 
-## Getting Started
+## Requirements
 
-This project is a starting point for a Flutter application.
+- Flutter SDK (stable channel)
+- Android Studio (Android SDK + emulator)
+- Xcode (for iOS simulator/device builds on macOS)
 
-A few resources to get you started if this is your first Flutter project:
+## Run On Android
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+1. Start an Android emulator or connect an Android device.
+2. From this directory, run:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter run -d android
+```
+
+## Run On iOS
+
+1. On macOS, start an iOS simulator or connect an iPhone.
+2. Install dependencies and run:
+
+```bash
+flutter pub get
+cd ios && pod install && cd ..
+flutter run -d ios
+```
+
+## Build Releases
+
+Android APK:
+
+```bash
+flutter build apk --release
+```
+
+Android App Bundle:
+
+```bash
+flutter build appbundle --release
+```
+
+iOS:
+
+```bash
+flutter build ios --release
+```
+
+## Useful Commands
+
+List connected devices:
+
+```bash
+flutter devices
+```
+
+Analyze project:
+
+```bash
+flutter analyze
+```

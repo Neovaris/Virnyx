@@ -15,3 +15,9 @@
     @apply backdrop-blur-xl bg-white/10 border border-white/20;
   }
 }
+
+@keyframes scanline {
+  0%   { top: 0; }
+  50%  { top: calc(100% - 2px); }
+  100% { top: 0; }
+}

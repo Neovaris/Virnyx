@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/jsbarcode": "^3.11.4",
     "axios": "^1.6.2",
     "jose": "^6.2.2",
+    "jsbarcode": "^3.12.3",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",

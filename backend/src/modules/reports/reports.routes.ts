@@ -341,6 +341,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         ((req.query as any).date as string) ||
         new Date().toISOString().slice(0, 10);
       const status = ((req.query as any).status as string) || "COMPLETED";
+      const cashierId = ((req.query as any).cashierId as string) || undefined;
       const page = Math.max(Number((req.query as any).page ?? 1), 1);
       const limit = Math.min(
         Math.max(Number((req.query as any).limit ?? 20), 1),
@@ -355,6 +356,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         merchantId,
         storeId,
         status,
+        ...(cashierId ? { cashierId } : {}),
         createdAt: { gte: from, lt: to },
       } as const;
 
@@ -367,6 +369,7 @@ export async function reportsRoutes(app: FastifyInstance) {
           select: {
             id: true,
             receiptNo: true,
+            cashierId: true,
             status: true,
             subtotal: true,
             discount: true,
@@ -381,6 +384,7 @@ export async function reportsRoutes(app: FastifyInstance) {
       return {
         date,
         status,
+        cashierId: cashierId ?? null,
         page,
         limit,
         total,
