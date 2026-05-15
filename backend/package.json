@@ -23,6 +23,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/static": "^9.0.0",
     "@prisma/client": "^6.19.2",
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
@@ -35,7 +36,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^29.5.12",
     "@types/node": "^25.3.2",
